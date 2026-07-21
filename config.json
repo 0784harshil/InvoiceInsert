@@ -1,0 +1,9 @@
+{
+  "printer_ip": "10.1.10.5",
+  "DB Server": "Harshil\\PCAMERICA",
+  "DB Name": "cresql",
+  "Trusted_Connection": true,
+  "receiving_certified": true,
+  "GEMINI_API_KEY": "",
+  "login_hint": "Admin: 9796, User: Smile"
+}

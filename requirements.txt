@@ -1,0 +1,17 @@
+# Core dependencies
+pandas
+pyodbc
+pytesseract
+pdf2image
+opencv-python
+openpyxl
+pillow
+numpy
+
+# LLM Integration (optional but recommended)
+google-generativeai
+
+# For advanced OCR fallback (optional - adds ~500MB)
+# Uncomment if you want TrOCR support:
+# transformers
+# torch
