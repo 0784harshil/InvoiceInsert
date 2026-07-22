@@ -144,21 +144,23 @@ if "header" in st.session_state:
         st.subheader("✏️ Single Unit Cost Management & Human Verification Grid")
         st.caption("Rule 9: Edit Case Cost, Approved POS Qty, Department, or Selling Price directly below. Single POS Unit Cost is calculated automatically!")
 
-        # Dynamic Column Header Mapping Controls
+        # Dynamic Column Header Mapping Controls (5 Column Selectors)
         col_list = list(st.session_state["editor_df"].columns)
         with st.expander("🛠️ Column Header Mapping Controls (For Custom CSV / Excel Uploads)", expanded=True):
             st.caption("Select which column in your document or table maps to each POS inventory field:")
-            m1, m2, m3, m4 = st.columns(4)
+            m1, m2, m3, m4, m5 = st.columns(5)
             
             idx_v = col_list.index("Vendor Item #") if "Vendor Item #" in col_list else 0
             idx_u = col_list.index("UPC") if "UPC" in col_list else 0
             idx_d = col_list.index("Description") if "Description" in col_list else 0
+            idx_q = col_list.index("Case Qty") if "Case Qty" in col_list else 0
             idx_c = col_list.index("Case Cost ($)") if "Case Cost ($)" in col_list else 0
 
             map_vendor_col = m1.selectbox("Map Vendor Item # Column", col_list, index=idx_v, key="map_vendor_col")
             map_upc_col = m2.selectbox("Map UPC Column", col_list, index=idx_u, key="map_upc_col")
             map_desc_col = m3.selectbox("Map Description Column", col_list, index=idx_d, key="map_desc_col")
-            map_cost_col = m4.selectbox("Map Case Cost Column", col_list, index=idx_c, key="map_cost_col")
+            map_qty_col = m4.selectbox("Map Case Quantity Column", col_list, index=idx_q, key="map_qty_col")
+            map_cost_col = m5.selectbox("Map Case Cost Column", col_list, index=idx_c, key="map_cost_col")
 
         # Interactive Editable Excel-like Grid
         edited_df = st.data_editor(
@@ -194,7 +196,7 @@ if "header" in st.session_state:
                     upc = str(row.get(map_upc_col, "")).strip()
                     desc = str(row.get(map_desc_col, "")).strip()
                     pkg = str(row.get("Package", "EA")).strip()
-                    case_qty = Decimal(str(row.get("Case Qty", 1.0)))
+                    case_qty = Decimal(str(row.get(map_qty_col, 1.0)))
                     case_cost = Decimal(str(row.get(map_cost_col, 0.0)))
                     approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
 
@@ -237,7 +239,7 @@ if "header" in st.session_state:
             st.session_state["header"] = header
             st.session_state["editor_df"] = edited_df
             st.session_state["is_verified"] = True
-            st.success(f"✅ Verified {len(updated_line_items)} items using mapped columns (`{map_vendor_col}`, `{map_upc_col}`, `{map_desc_col}`, `{map_cost_col}`)!")
+            st.success(f"✅ Verified {len(updated_line_items)} items using mapped columns (`{map_vendor_col}`, `{map_upc_col}`, `{map_desc_col}`, `{map_qty_col}`, `{map_cost_col}`)!")
 
         # Post / Live DB Receiving Button
         st.divider()
@@ -254,7 +256,7 @@ if "header" in st.session_state:
                 updated_line_items = []
                 for idx, row in edited_df.iterrows():
                     try:
-                        case_qty = Decimal(str(row.get("Case Qty", 1.0)))
+                        case_qty = Decimal(str(row.get(map_qty_col, 1.0)))
                         case_cost = Decimal(str(row.get(map_cost_col, 0.0)))
                         approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
                         item_code = str(row.get(map_vendor_col, "")).strip()
