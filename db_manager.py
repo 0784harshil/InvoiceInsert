@@ -1,7 +1,7 @@
 """
 Certified Database Manager for CRE / POS Integration
 Enforces Rules 4, 12, 13, 14, 15, 17, 18:
-- CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price, and non-empty ItemName.
+- CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price, non-empty ItemName, and Intelligent Dept_ID.
 - Automatic UPC Normalization (EAN-13, UPC-A, GTIN-11) & Dual-Field Storage (ItemNum + AltSKU + Helper_ItemNum).
 - Writes primary ItemNum AND all alternate barcode variants into Inventory_SKUS table for 100% POS Alt SKU search compatibility.
 - Full Operational Logging & 1-Click Atomic Transaction Rollback.
@@ -19,12 +19,13 @@ from typing import Dict, Any, List, Tuple, Optional
 from models import InvoiceHeader, InvoiceLineItem, ReviewState
 from upc_normalizer import UPCNormalizer
 from operational_logger import OperationalLogger
+from department_classifier import DepartmentClassifier
 
 
 class CertifiedDBManager:
     """
     Certified Database Manager guaranteeing transactional safety, shadow mode audit logs,
-    CRE POS scanner flags (Inactive=0, ItemType=0, Dirty=1, Price, non-empty ItemName),
+    CRE POS scanner flags (Inactive=0, ItemType=0, Dirty=1, Price, non-empty ItemName, Intelligent Dept_ID),
     dual-field AltSKU inventory upserts, detailed operational logging, and 1-click rollbacks.
     """
 
@@ -40,6 +41,7 @@ class CertifiedDBManager:
         self.is_certified: bool = self.config.get('receiving_certified', True)
         self.normalizer = UPCNormalizer()
         self.logger = OperationalLogger()
+        self.classifier = DepartmentClassifier()
         self._init_sqlite_db()
 
     def _load_config(self, config_path: str) -> dict:
@@ -81,6 +83,7 @@ class CertifiedDBManager:
                     In_Stock REAL,
                     Vendor_Part_Num TEXT,
                     Helper_ItemNum TEXT,
+                    Dept_ID TEXT DEFAULT 'MISC',
                     Inactive INTEGER DEFAULT 0,
                     ItemType INTEGER DEFAULT 0,
                     Dirty INTEGER DEFAULT 1,
@@ -130,11 +133,6 @@ class CertifiedDBManager:
             row = cursor.fetchone()
             if row and row[0]:
                 self.sample_store_id = str(row[0]).strip()
-
-            cursor.execute("SELECT TOP 1 Dept_ID FROM Departments WHERE Dept_ID IS NOT NULL AND Dept_ID <> ''")
-            dept_row = cursor.fetchone()
-            if dept_row and dept_row[0]:
-                self.sample_dept_id = str(dept_row[0]).strip()
         except Exception:
             pass
 
@@ -200,13 +198,14 @@ class CertifiedDBManager:
             cost = item.unit_cost
             price = cost * Decimal('1.30')
             desc = str(item.raw_description).strip() or f"ITEM {item.raw_item_num}"
+            proper_dept = self.classifier.classify_department(desc, raw_upc)
 
             shadow_sql = (
-                f"-- SHADOW MODE SQL (CRE POS Scanner & Alt SKU Enabled):\n"
+                f"-- SHADOW MODE SQL (CRE POS Scanner & Dept classification: {proper_dept}):\n"
                 f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{mapping['primary_item_num']}')\n"
-                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, ItemName = '{desc[:30]}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
+                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, ItemName = '{desc[:30]}', Dept_ID = '{proper_dept}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
                 f"ELSE\n"
-                f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{desc[:30]}', {cost}, {price}, {qty}, '{mapping['helper_item_num']}', 0, 0, 1, 1, '{self.sample_dept_id}');\n"
+                f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{desc[:30]}', {cost}, {price}, {qty}, '{mapping['helper_item_num']}', 0, 0, 1, 1, '{proper_dept}');\n"
             )
             all_alts = set(mapping['alt_skus'])
             all_alts.add(mapping['primary_item_num'])
@@ -226,7 +225,7 @@ class CertifiedDBManager:
         transaction_id: str
     ) -> Dict[str, Any]:
         """
-        Executes live atomic receiving with CRE POS Alt SKU search compatibility.
+        Executes live atomic receiving with intelligent Dept_ID classification and CRE POS Alt SKU search compatibility.
         """
         if not self.conn:
             if not self.connect():
@@ -236,7 +235,6 @@ class CertifiedDBManager:
 
         cursor = self.conn.cursor()
         store_id = self.sample_store_id if (not header.store_id or header.store_id.startswith("STORE-")) else header.store_id
-        dept_id = self.sample_dept_id
         items_logged = []
 
         try:
@@ -252,6 +250,7 @@ class CertifiedDBManager:
                 price = cost * Decimal('1.30')
                 desc = str(item.raw_description).strip() or f"ITEM {vendor_part or raw_upc[-6:]}"
                 desc = desc[:30]
+                proper_dept = self.classifier.classify_department(desc, raw_upc)
 
                 # Generate Normalized UPC variants
                 upc_variants = list(self.normalizer.generate_variants(raw_upc))
@@ -263,7 +262,7 @@ class CertifiedDBManager:
                 query_args = upc_variants if upc_variants else [raw_upc]
 
                 cursor.execute(
-                    f"""SELECT ItemNum, In_Stock, Cost, Price, ItemName FROM Inventory 
+                    f"""SELECT ItemNum, In_Stock, Cost, Price, ItemName, Dept_ID FROM Inventory 
                         WHERE ItemNum IN ({query_placeholders}) 
                            OR Helper_ItemNum IN ({query_placeholders}) 
                            OR Vendor_Part_Num IN ({query_placeholders})
@@ -278,17 +277,19 @@ class CertifiedDBManager:
                     initial_stock = Decimal(str(row[1])) if row[1] is not None else Decimal('0')
                     initial_cost = Decimal(str(row[2])) if row[2] is not None else Decimal('0.00')
                     existing_name = str(row[4]).strip() if row[4] else ""
+                    existing_dept = str(row[5]).strip() if row[5] else ""
 
                     target_upc = matched_upc
                     helper_upc = upc_variants[0] if (upc_variants and upc_variants[0] != target_upc) else ""
                     final_name = desc if (not existing_name or existing_name == '0.0') else existing_name
+                    final_dept = proper_dept if (not existing_dept or existing_dept == 'MISC') else existing_dept
 
                     cursor.execute(
                         """UPDATE Inventory 
                            SET In_Stock = In_Stock + ?, Cost = ?, Price = CASE WHEN Price IS NULL OR Price = 0 THEN ? ELSE Price END,
-                               ItemName = ?, Vendor_Part_Num = ?, Helper_ItemNum = ?, Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1
+                               ItemName = ?, Dept_ID = ?, Vendor_Part_Num = ?, Helper_ItemNum = ?, Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1
                            WHERE ItemNum = ?""",
-                        (float(add_qty), float(cost), float(price), final_name, vendor_part, helper_upc, target_upc)
+                        (float(add_qty), float(cost), float(price), final_name, final_dept, vendor_part, helper_upc, target_upc)
                     )
                 else:
                     action_type = "INSERT"
@@ -319,12 +320,12 @@ class CertifiedDBManager:
                                 0, 0, 0, 0.0, 0.0,
                                 0, 0, 0, 0.0, 0, 0
                             )""",
-                            (store_id, target_upc, desc, float(cost), float(price), float(add_qty), vendor_part, helper_upc, dept_id)
+                            (store_id, target_upc, desc, float(cost), float(price), float(add_qty), vendor_part, helper_upc, proper_dept)
                         )
                     else:
                         cursor.execute(
-                            "INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Vendor_Part_Num, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 1, 1)",
-                            (store_id, target_upc, desc, float(cost), float(price), float(add_qty), vendor_part, helper_upc)
+                            "INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Vendor_Part_Num, Helper_ItemNum, Dept_ID, Inactive, ItemType, Dirty, Tax_1) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 1, 1)",
+                            (store_id, target_upc, desc, float(cost), float(price), float(add_qty), vendor_part, helper_upc, proper_dept)
                         )
 
                 # Upsert Primary ItemNum AND all alternate barcodes into Inventory_SKUS table
@@ -358,7 +359,7 @@ class CertifiedDBManager:
 
                 if abs(final_stock - expected_final_stock) < Decimal('0.01'):
                     results['items_reconciled'] += 1
-                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [POS Enabled]"
+                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [Dept: {proper_dept}]"
                     results['reconciliation_report'].append(msg)
 
                     items_logged.append({
@@ -379,7 +380,7 @@ class CertifiedDBManager:
             # Commit Transaction
             self.conn.commit()
             results['status'] = f"LIVE_SUCCESS ({self.conn_type.upper()})"
-            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with POS Scanner Flags.")
+            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with POS Scanner Flags & Depts.")
 
             self.logger.log_transaction(
                 transaction_id=transaction_id,
@@ -469,7 +470,7 @@ class CertifiedDBManager:
                 return []
         try:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT TOP 200 Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Vendor_Part_Num, Helper_ItemNum, Inactive, Dirty FROM Inventory WHERE Vendor_Part_Num IS NOT NULL AND Vendor_Part_Num <> '' ORDER BY In_Stock DESC")
+            cursor.execute("SELECT TOP 200 Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Vendor_Part_Num, Helper_ItemNum, Dept_ID, Inactive, Dirty FROM Inventory WHERE Vendor_Part_Num IS NOT NULL AND Vendor_Part_Num <> '' ORDER BY In_Stock DESC")
             rows = cursor.fetchall()
             return [
                 {
@@ -481,8 +482,9 @@ class CertifiedDBManager:
                     "In_Stock": float(r[5]) if r[5] is not None else 0.0,
                     "Vendor_Part_Num": str(r[6]) if r[6] is not None else "",
                     "Helper_ItemNum": str(r[7]) if r[7] is not None else "",
-                    "Inactive": int(r[8]) if r[8] is not None else 0,
-                    "Dirty": bool(r[9]) if r[9] is not None else False
+                    "Dept_ID": str(r[8]) if r[8] is not None else "MISC",
+                    "Inactive": int(r[9]) if r[9] is not None else 0,
+                    "Dirty": bool(r[10]) if r[10] is not None else False
                 }
                 for r in rows
             ]

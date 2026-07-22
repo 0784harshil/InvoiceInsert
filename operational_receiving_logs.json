@@ -1,5 +1,412 @@
 [
   {
+    "transaction_id": "TXN-20260722004537-119227318",
+    "timestamp": "2026-07-22T00:45:38.542226",
+    "invoice_number": "119227318",
+    "vendor_name": "Core-Mark / Distributor",
+    "store_id": "1001",
+    "status": "LIVE_SUCCESS (PYODBC)",
+    "execution_mode": "LIVE",
+    "item_count": 26,
+    "rolled_back": false,
+    "rollback_timestamp": null,
+    "items_detail": [
+      {
+        "item_num": "073390008185",
+        "description": "AIRHEADS XTREME RAINBOW BITES",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 6.63,
+        "new_cost": 6.63,
+        "alt_skus_added": [
+          "914523",
+          "073390008185"
+        ]
+      },
+      {
+        "item_num": "634418524812",
+        "description": "ALBANESE EXOTIC GUMMI BEARS PE",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 6.99,
+        "new_cost": 6.99,
+        "alt_skus_added": [
+          "292540",
+          "634418524812"
+        ]
+      },
+      {
+        "item_num": "634418523488",
+        "description": "ALBANESE GUMMI BEARS Z",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 6.99,
+        "new_cost": 6.99,
+        "alt_skus_added": [
+          "912097",
+          "634418523488"
+        ]
+      },
+      {
+        "item_num": "634418523495",
+        "description": "ALBANESE GUMMI PEACH RINGS Z",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 7.05,
+        "new_cost": 7.05,
+        "alt_skus_added": [
+          "912071",
+          "634418523495"
+        ]
+      },
+      {
+        "item_num": "068437389716",
+        "description": "BROOKSIDE ACAI/BLUE DARK CHOOC",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 15.66,
+        "new_cost": 15.66,
+        "alt_skus_added": [
+          "068437389716",
+          "922013"
+        ]
+      },
+      {
+        "item_num": "099900100873",
+        "description": "BUTTERFINGER SINGLE BAR",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 1.92,
+        "new_cost": 1.92,
+        "alt_skus_added": [
+          "35964",
+          "099900100873"
+        ]
+      },
+      {
+        "item_num": "073390055011",
+        "description": "DENTYNE ICE GUM SPLITFIT ARTIC",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 10.5,
+        "new_cost": 10.5,
+        "alt_skus_added": [
+          "073390055011",
+          "324459"
+        ]
+      },
+      {
+        "item_num": "073390055035",
+        "description": "DENTYNE ICE GUM SPLITFIT PEPPE",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 10.5,
+        "new_cost": 10.5,
+        "alt_skus_added": [
+          "073390055035",
+          "324467"
+        ]
+      },
+      {
+        "item_num": "022000008992",
+        "description": "EXTRA GUM SPEARMINT PC",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 13.1,
+        "new_cost": 13.1,
+        "alt_skus_added": [
+          "022000008992",
+          "0022000008992",
+          "10694",
+          "22000008992"
+        ]
+      },
+      {
+        "item_num": "016000137042",
+        "description": "FRUIT GUSHERS SUPER SOUR BERRY",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 4.25,
+        "new_cost": 4.25,
+        "alt_skus_added": [
+          "016000137042",
+          "16000137042",
+          "0016000137042",
+          "113720"
+        ]
+      },
+      {
+        "item_num": "016000172616",
+        "description": "FRUIT GUSHERS TROPICAL Z",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 4.25,
+        "new_cost": 4.25,
+        "alt_skus_added": [
+          "0016000172616",
+          "165605",
+          "16000172616",
+          "016000172616"
+        ]
+      },
+      {
+        "item_num": "042238302556",
+        "description": "HARIBO GOLD BEARS STAND UP",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 10.02,
+        "new_cost": 10.02,
+        "alt_skus_added": [
+          "0042238302556",
+          "042238302556",
+          "42238302556",
+          "246199"
+        ]
+      },
+      {
+        "item_num": "042238726239",
+        "description": "HARIBO GOLDBEARS WILD BERRY",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 4.98,
+        "new_cost": 4.98,
+        "alt_skus_added": [
+          "331215",
+          "42238726239",
+          "042238726239",
+          "0042238726239"
+        ]
+      },
+      {
+        "item_num": "042238472556",
+        "description": "HARIBO GUMMI FROGS Z",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 4.71,
+        "new_cost": 4.71,
+        "alt_skus_added": [
+          "305326",
+          "0042238472556",
+          "42238472556",
+          "042238472556"
+        ]
+      },
+      {
+        "item_num": "042238724563",
+        "description": "HARIBO GUMMI RAINBOW WORMS",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 1.57,
+        "new_cost": 1.57,
+        "alt_skus_added": [
+          "0042238724563",
+          "587253",
+          "42238724563",
+          "042238724563"
+        ]
+      },
+      {
+        "item_num": "042238358898",
+        "description": "HARIBO GUMMI SOUR SGHETTI Z",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 4.71,
+        "new_cost": 4.71,
+        "alt_skus_added": [
+          "0042238358898",
+          "042238358898",
+          "696948",
+          "42238358898"
+        ]
+      },
+      {
+        "item_num": "042238377554",
+        "description": "HARIBO GUMMI TWIN SNAKES Z",
+        "action_type": "UPDATE",
+        "initial_stock": 4.0,
+        "added_qty": 1.0,
+        "final_stock": 5.0,
+        "initial_cost": 4.71,
+        "new_cost": 4.71,
+        "alt_skus_added": [
+          "500959",
+          "42238377554",
+          "042238377554",
+          "0042238377554"
+        ]
+      },
+      {
+        "item_num": "042238750036",
+        "description": "HARIBO ZING SOUR STREAMERS Z P",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 4.71,
+        "new_cost": 4.71,
+        "alt_skus_added": [
+          "42238750036",
+          "0042238750036",
+          "117523",
+          "042238750036"
+        ]
+      },
+      {
+        "item_num": "850017589742",
+        "description": "HI CHEW GETAWAY MIX PEG Z",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 11.79,
+        "new_cost": 11.79,
+        "alt_skus_added": [
+          "330274",
+          "850017589742"
+        ]
+      },
+      {
+        "item_num": "873983005047",
+        "description": "HI CHEW ORIGINAL FRUIT CHEWS ,",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 6.57,
+        "new_cost": 6.57,
+        "alt_skus_added": [
+          "105049",
+          "873983005047"
+        ]
+      },
+      {
+        "item_num": "034000000074",
+        "description": "ICE BREAKERS MINTS SF COOLMINT",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 1.52,
+        "new_cost": 1.52,
+        "alt_skus_added": [
+          "34000000074",
+          "034000000074",
+          "275826",
+          "0034000000074"
+        ]
+      },
+      {
+        "item_num": "010700557100",
+        "description": "JOLLY RANCHER GUMMIES PEG SOUR",
+        "action_type": "UPDATE",
+        "initial_stock": 5.0,
+        "added_qty": 1.0,
+        "final_stock": 6.0,
+        "initial_cost": 6.52,
+        "new_cost": 6.52,
+        "alt_skus_added": [
+          "0010700557100",
+          "010700557100",
+          "229955",
+          "10700557100"
+        ]
+      },
+      {
+        "item_num": "022000120304",
+        "description": "LIFESAVERS GUMMIES COLLISIONS ",
+        "action_type": "UPDATE",
+        "initial_stock": 4.0,
+        "added_qty": 1.0,
+        "final_stock": 5.0,
+        "initial_cost": 0.0,
+        "new_cost": 0.0,
+        "alt_skus_added": [
+          "22000120304",
+          "0022000120304",
+          "829150",
+          "022000120304"
+        ]
+      },
+      {
+        "item_num": "019000170491",
+        "description": "LIFESAVERS GUMMIES SOUR ASSORT",
+        "action_type": "UPDATE",
+        "initial_stock": 4.0,
+        "added_qty": 1.0,
+        "final_stock": 5.0,
+        "initial_cost": 7.41,
+        "new_cost": 7.41,
+        "alt_skus_added": [
+          "553172",
+          "0019000170491",
+          "19000170491",
+          "019000170491"
+        ]
+      },
+      {
+        "item_num": "019000085047",
+        "description": "LIFESAVERS WINT O GREEN ,Z  \u201co",
+        "action_type": "UPDATE",
+        "initial_stock": 4.0,
+        "added_qty": 1.0,
+        "final_stock": 5.0,
+        "initial_cost": 0.0,
+        "new_cost": 0.0,
+        "alt_skus_added": [
+          "19000085047",
+          "019000085047",
+          "0019000085047",
+          "287078"
+        ]
+      },
+      {
+        "item_num": "252262",
+        "description": "M&M PEANUT ,Z",
+        "action_type": "UPDATE",
+        "initial_stock": 4.0,
+        "added_qty": 1.0,
+        "final_stock": 5.0,
+        "initial_cost": 0.0,
+        "new_cost": 0.0,
+        "alt_skus_added": [
+          "252262"
+        ]
+      }
+    ]
+  },
+  {
     "transaction_id": "TXN-20260722004157-119227318",
     "timestamp": "2026-07-22T00:41:58.489299",
     "invoice_number": "119227318",
