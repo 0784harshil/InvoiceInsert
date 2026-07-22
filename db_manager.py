@@ -1,7 +1,7 @@
 """
 Certified Database Manager for CRE / POS Integration
 Enforces Rules 4, 12, 13, 14, 15, 17, 18:
-- CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price, non-empty ItemName, and Intelligent Dept_ID.
+- CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price (Markup on Single Unit Cost), non-empty ItemName, and Intelligent Dept_ID.
 - Automatic UPC Normalization (EAN-13, UPC-A, GTIN-11) & Dual-Field Storage (ItemNum + AltSKU + Helper_ItemNum).
 - Writes Primary ItemNum AND Vendor Item Number AND all alternate barcode variants into Inventory_SKUS.AltSKU.
 - Full Operational Logging & 1-Click Atomic Transaction Rollback.
@@ -196,15 +196,15 @@ class CertifiedDBManager:
             vendor_part = str(item.raw_item_num).strip()
             mapping = self.normalizer.determine_primary_and_alts(raw_upc, vendor_part)
             qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
-            cost = item.unit_cost
-            price = cost * Decimal('1.30')
+            cost = item.pos_unit_cost or item.unit_cost
+            price = getattr(item, 'retail_price', (cost * Decimal('1.30')).quantize(Decimal('0.01')))
             desc = str(item.raw_description).strip() or f"ITEM {vendor_part}"
             proper_dept = self.classifier.classify_department(desc, raw_upc)
 
             shadow_sql = (
-                f"-- SHADOW MODE SQL (CRE POS Scanner & Alt SKU Enabled - ItemNum + Vendor Part):\n"
+                f"-- SHADOW MODE SQL (Single POS Unit Cost: ${cost:.2f}, Retail Price: ${price:.2f}):\n"
                 f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{mapping['primary_item_num']}')\n"
-                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, ItemName = '{desc[:30]}', Dept_ID = '{proper_dept}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
+                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, Price = {price}, ItemName = '{desc[:30]}', Dept_ID = '{proper_dept}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
                 f"ELSE\n"
                 f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{desc[:30]}', {cost}, {price}, {qty}, '{mapping['helper_item_num']}', 0, 0, 1, 1, '{proper_dept}');\n"
             )
@@ -229,7 +229,7 @@ class CertifiedDBManager:
         transaction_id: str
     ) -> Dict[str, Any]:
         """
-        Executes live atomic receiving writing Primary ItemNum AND Vendor Item Number AND all barcode variants to Inventory_SKUS.AltSKU.
+        Executes live atomic receiving applying markup directly to Single POS Unit Cost.
         """
         if not self.conn:
             if not self.connect():
@@ -250,8 +250,11 @@ class CertifiedDBManager:
                 raw_upc = str(item.raw_upc or item.raw_item_num)
                 vendor_part = str(item.raw_item_num)[:20]
                 add_qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
-                cost = item.unit_cost
-                price = cost * Decimal('1.30')
+                
+                # SINGLE POS UNIT COST & RETAIL SELLING PRICE
+                cost = item.pos_unit_cost or item.unit_cost
+                price = getattr(item, 'retail_price', (cost * Decimal('1.30')).quantize(Decimal('0.01')))
+                
                 desc = str(item.raw_description).strip() or f"ITEM {vendor_part or raw_upc[-6:]}"
                 desc = desc[:30]
                 proper_dept = self.classifier.classify_department(desc, raw_upc)
@@ -290,7 +293,7 @@ class CertifiedDBManager:
 
                     cursor.execute(
                         """UPDATE Inventory 
-                           SET In_Stock = In_Stock + ?, Cost = ?, Price = CASE WHEN Price IS NULL OR Price = 0 THEN ? ELSE Price END,
+                           SET In_Stock = In_Stock + ?, Cost = ?, Price = ?,
                                ItemName = ?, Dept_ID = ?, Vendor_Part_Num = ?, Helper_ItemNum = ?, Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1
                            WHERE ItemNum = ?""",
                         (float(add_qty), float(cost), float(price), final_name, final_dept, vendor_part, helper_upc, target_upc)
@@ -369,7 +372,7 @@ class CertifiedDBManager:
 
                 if abs(final_stock - expected_final_stock) < Decimal('0.01'):
                     results['items_reconciled'] += 1
-                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [AltSKUs Synced: {len(alts_added)}]"
+                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Stock: {final_stock}, Single Unit Cost: ${cost:.2f}, Retail Price: ${price:.2f}"
                     results['reconciliation_report'].append(msg)
 
                     items_logged.append({
@@ -381,6 +384,7 @@ class CertifiedDBManager:
                         "final_stock": float(final_stock),
                         "initial_cost": float(initial_cost),
                         "new_cost": float(cost),
+                        "new_price": float(price),
                         "alt_skus_added": alts_added
                     })
                 else:
@@ -390,7 +394,7 @@ class CertifiedDBManager:
             # Commit Transaction
             self.conn.commit()
             results['status'] = f"LIVE_SUCCESS ({self.conn_type.upper()})"
-            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with Vendor & ItemNum AltSKUs.")
+            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with Single Unit Cost & Retail Price Markup.")
 
             self.logger.log_transaction(
                 transaction_id=transaction_id,

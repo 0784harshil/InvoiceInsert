@@ -1,5 +1,5 @@
 """
-Invoice Manager — Enterprise Web UI with Interactive Verification, Single Item Cost Calculation, & Dynamic Header Mapping Controls
+Invoice Manager — Enterprise Web UI with Single Item Unit Cost Markup Engine & Dynamic Header Mapping Controls
 Enforces Rule 9 (Human Review), Rule 10 (Actual-Good Quantity), Rule 11 (Fee Segregation),
 Rule 13 (Atomic Transaction & Readback Reconciliation), Rule 14 (posting_enabled=False),
 Rule 15 (shadow_mode=True), and Rule 18 (Reconciliation).
@@ -28,7 +28,7 @@ from models import ReviewState, InvoiceHeader, InvoiceLineItem, SegregatedFees
 st.set_page_config(page_title="Enterprise Invoice Receiving Engine", page_icon="📄", layout="wide")
 
 st.title("Enterprise Invoice Receiving Engine")
-st.caption("Rule-Enforced Receiving, Single Item Cost Management, Interactive Excel Grid, & Dynamic Header Mapping.")
+st.caption("Rule-Enforced Receiving, Single Item Unit Cost Markup Engine, Interactive Excel Grid, & Dynamic Header Mapping.")
 
 # Sidebar Controls
 with st.sidebar:
@@ -39,6 +39,7 @@ with st.sidebar:
     st.divider()
     st.subheader("Markup & Pricing Settings")
     default_markup_pct = st.number_input("Default Retail Selling Markup (%)", min_value=0.0, max_value=200.0, value=30.0, step=5.0) / 100.0
+    st.caption("Markup is applied directly to the **Single POS Unit Cost** (NOT bulk/case cost).")
 
     st.divider()
     db_mgr = CertifiedDBManager("config.json")
@@ -70,7 +71,7 @@ if uploaded is not None:
         tmp_path = tmp.name
 
     if st.button("🔍 Process Document & Build Template Grid", type="primary"):
-        with st.spinner("Extracting invoice data and building interactive single unit cost verification template..."):
+        with st.spinner("Extracting invoice data and building single POS unit cost markup template..."):
             try:
                 header = parser.parse_file(tmp_path)
                 header = review_mgr.audit_and_prepare_invoice(header)
@@ -81,7 +82,10 @@ if uploaded is not None:
                     case_cost = item.unit_cost
                     total_cost = item.total_cost or (item.case_quantity * case_cost)
                     
+                    # Single POS Unit Cost = Total Line Cost / Approved POS Qty
                     single_pos_unit_cost = (total_cost / pos_qty).quantize(Decimal('0.01')) if pos_qty > Decimal('0') else case_cost
+                    
+                    # RETAIL SELLING PRICE = Single POS Unit Cost * (1 + Markup %)
                     retail_price = (single_pos_unit_cost * Decimal(str(1 + default_markup_pct))).quantize(Decimal('0.01'))
                     dept = classifier.classify_department(item.raw_description, item.raw_upc or item.raw_item_num)
 
@@ -142,7 +146,7 @@ if "header" in st.session_state:
 
         st.divider()
         st.subheader("✏️ Single Unit Cost Management & Human Verification Grid")
-        st.caption("Rule 9: Edit Case Cost, Approved POS Qty, Department, or Selling Price directly below. Single POS Unit Cost is calculated automatically!")
+        st.caption("Markup % is applied to Single POS Unit Cost. Single POS Unit Cost = (Case Qty * Case Cost) / Approved POS Qty.")
 
         # Dynamic Column Header Mapping Controls (5 Column Selectors)
         col_list = list(st.session_state["editor_df"].columns)
@@ -180,9 +184,9 @@ if "header" in st.session_state:
                 "Case Cost ($)": st.column_config.NumberColumn("Case Cost ($)", format="$%.2f"),
                 "Expected POS Qty": st.column_config.NumberColumn("Expected POS Qty", format="%.2f"),
                 "Approved Qty": st.column_config.NumberColumn("Approved POS Qty", format="%.2f"),
-                "Single POS Unit Cost ($)": st.column_config.NumberColumn("Single POS Unit Cost ($)", format="$%.2f", disabled=True),
+                "Single POS Unit Cost ($)": st.column_config.NumberColumn("Single POS Unit Cost ($)", format="$%.2f", help="Calculated as (Case Qty * Case Cost) / Approved POS Qty"),
                 "Total Line Cost ($)": st.column_config.NumberColumn("Total Line Cost ($)", format="$%.2f"),
-                "Retail Selling Price ($)": st.column_config.NumberColumn("Retail Selling Price ($)", format="$%.2f")
+                "Retail Selling Price ($)": st.column_config.NumberColumn("Retail Selling Price ($)", format="$%.2f", help="Calculated as Single POS Unit Cost * (1 + Markup %)")
             }
         )
 
@@ -211,6 +215,7 @@ if "header" in st.session_state:
 
                     total_cost = case_qty * case_cost
                     single_unit_cost = (total_cost / approved_qty).quantize(Decimal('0.0001')) if approved_qty > Decimal('0') else case_cost
+                    user_retail_price = Decimal(str(row.get("Retail Selling Price ($)", single_unit_cost * Decimal(str(1 + default_markup_pct)))))
 
                     item = InvoiceLineItem(
                         line_number=line_num,
@@ -228,6 +233,8 @@ if "header" in st.session_state:
                         conversion_rule_used=rule,
                         review_state=ReviewState.REVIEWED_APPROVED
                     )
+                    # Attach retail price to item for db manager
+                    item.retail_price = user_retail_price
                     updated_line_items.append(item)
                 except Exception as ex:
                     st.warning(f"Row {idx+1} conversion warning: {ex}")
@@ -239,7 +246,7 @@ if "header" in st.session_state:
             st.session_state["header"] = header
             st.session_state["editor_df"] = edited_df
             st.session_state["is_verified"] = True
-            st.success(f"✅ Verified {len(updated_line_items)} items using mapped columns (`{map_vendor_col}`, `{map_upc_col}`, `{map_desc_col}`, `{map_qty_col}`, `{map_cost_col}`)!")
+            st.success(f"✅ Calculated Retail Selling Prices based on Single POS Unit Cost for {len(updated_line_items)} items!")
 
         # Post / Live DB Receiving Button
         st.divider()
@@ -248,7 +255,7 @@ if "header" in st.session_state:
         if shadow_mode:
             st.warning("⚠️ SHADOW MODE IS ON: Clicking execute will simulate queries without changing database. Toggle OFF 'Shadow Mode' in sidebar to write live data!")
         else:
-            st.info("🟢 LIVE MODE IS ACTIVE: Single Unit Costs & Stock will be updated directly in SQL Server Inventory.")
+            st.info("🟢 LIVE MODE IS ACTIVE: Single POS Unit Costs & Stock will be updated directly in SQL Server Inventory.")
 
         db = CertifiedDBManager("config.json")
         if st.button("🚀 Execute Receiving & Write to DB", type="primary"):
@@ -275,6 +282,7 @@ if "header" in st.session_state:
 
                         total_cost = case_qty * case_cost
                         single_unit_cost = (total_cost / approved_qty).quantize(Decimal('0.0001')) if approved_qty > Decimal('0') else case_cost
+                        user_retail_price = Decimal(str(row.get("Retail Selling Price ($)", single_unit_cost * Decimal(str(1 + default_markup_pct)))))
 
                         item = InvoiceLineItem(
                             line_number=idx + 1,
@@ -292,6 +300,7 @@ if "header" in st.session_state:
                             conversion_rule_used=rule,
                             review_state=ReviewState.REVIEWED_APPROVED
                         )
+                        item.retail_price = user_retail_price
                         updated_line_items.append(item)
                     except Exception:
                         pass
@@ -301,7 +310,7 @@ if "header" in st.session_state:
             
             if "LIVE_SUCCESS" in res['status']:
                 st.balloons()
-                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items. Transaction ID: `{res['transaction_id']}`")
+                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items with Single POS Unit Costs. Transaction ID: `{res['transaction_id']}`")
             elif "SHADOW" in res['status']:
                 st.info(f"ℹ️ Shadow Audit Execution Completed for {res['items_reconciled']} items. Status: {res['status']}")
             else:
