@@ -1,8 +1,8 @@
 """
-Invoice Manager — Enterprise Web UI with Interactive Verification & Operational Rollback Dashboard
-Enforces Rule 9 (Human Review), Rule 10 (Actual-Good Quantity),
-Rule 13 (Atomic Transaction & Readback Reconciliation),
-Rule 14 (posting_enabled=False), Rule 15 (shadow_mode=True), and Rule 18 (Reconciliation).
+Invoice Manager — Enterprise Web UI with Interactive Verification, Single Item Cost Calculation, & Rollback Dashboard
+Enforces Rule 9 (Human Review), Rule 10 (Actual-Good Quantity), Rule 11 (Fee Segregation),
+Rule 13 (Atomic Transaction & Readback Reconciliation), Rule 14 (posting_enabled=False),
+Rule 15 (shadow_mode=True), and Rule 18 (Reconciliation).
 """
 
 from decimal import Decimal
@@ -21,13 +21,14 @@ from review_manager import ReviewManager
 from db_manager import CertifiedDBManager
 from package_converter import PackageConverter
 from operational_logger import OperationalLogger
+from department_classifier import DepartmentClassifier
 from models import ReviewState, InvoiceHeader, InvoiceLineItem
 
 
 st.set_page_config(page_title="Enterprise Invoice Receiving Engine", page_icon="📄", layout="wide")
 
 st.title("Enterprise Invoice Receiving Engine")
-st.caption("Rule-Enforced Invoice Processing, Interactive Excel Grid, AltSKU Upserts, & 1-Click Transaction Rollbacks.")
+st.caption("Rule-Enforced Receiving, Single Item Cost Management, Interactive Excel Grid, & 1-Click Rollback Dashboard.")
 
 # Sidebar Controls
 with st.sidebar:
@@ -35,6 +36,10 @@ with st.sidebar:
     shadow_mode = st.toggle("Shadow Mode (Audit Only)", value=False, help="Turn OFF to execute REAL live database insertion.")
     posting_enabled = st.toggle("Posting Enabled", value=True, help="Turn ON to allow database updates.")
     
+    st.divider()
+    st.subheader("Markup & Pricing Settings")
+    default_markup_pct = st.number_input("Default Retail Selling Markup (%)", min_value=0.0, max_value=200.0, value=30.0, step=5.0) / 100.0
+
     st.divider()
     db_mgr = CertifiedDBManager("config.json")
     st.markdown(f"**DB Certification:** {'✅ Certified' if db_mgr.is_certified else '⚠️ Not Certified'}")
@@ -56,6 +61,7 @@ validator = InvoiceValidator()
 review_mgr = ReviewManager()
 converter = PackageConverter()
 op_logger = OperationalLogger()
+classifier = DepartmentClassifier()
 
 if uploaded is not None:
     suffix = os.path.splitext(uploaded.name)[1]
@@ -64,24 +70,35 @@ if uploaded is not None:
         tmp_path = tmp.name
 
     if st.button("🔍 Process Document & Build Template Grid", type="primary"):
-        with st.spinner("Extracting invoice data and building interactive verification template..."):
+        with st.spinner("Extracting invoice data and building interactive single unit cost verification template..."):
             try:
                 header = parser.parse_file(tmp_path)
                 header = review_mgr.audit_and_prepare_invoice(header)
                 
                 rows = []
                 for item in header.line_items:
+                    pos_qty = item.expected_pos_qty or item.case_quantity
+                    case_cost = item.unit_cost
+                    total_cost = item.total_cost or (item.case_quantity * case_cost)
+                    
+                    single_pos_unit_cost = (total_cost / pos_qty).quantize(Decimal('0.01')) if pos_qty > Decimal('0') else case_cost
+                    retail_price = (single_pos_unit_cost * Decimal(str(1 + default_markup_pct))).quantize(Decimal('0.01'))
+                    dept = classifier.classify_department(item.raw_description, item.raw_upc or item.raw_item_num)
+
                     rows.append({
                         "Line #": item.line_number,
                         "Vendor Item #": item.raw_item_num,
                         "UPC": item.raw_upc or "",
                         "Description": item.raw_description,
+                        "Department": dept,
                         "Package": item.raw_package_text,
                         "Case Qty": float(item.case_quantity),
-                        "Unit Cost ($)": float(item.unit_cost),
-                        "Total Cost ($)": float(item.total_cost),
-                        "Expected POS Qty": float(item.expected_pos_qty or item.case_quantity),
-                        "Approved Qty": float(item.expected_pos_qty or item.case_quantity)
+                        "Case Cost ($)": float(case_cost),
+                        "Expected POS Qty": float(pos_qty),
+                        "Approved Qty": float(pos_qty),
+                        "Single POS Unit Cost ($)": float(single_pos_unit_cost),
+                        "Total Line Cost ($)": float(total_cost),
+                        "Retail Selling Price ($)": float(retail_price)
                     })
 
                 st.session_state["header"] = header
@@ -96,7 +113,7 @@ if uploaded is not None:
                 except OSError:
                     pass
 
-# Display Interactive Human Verification View
+# Display Interactive Human Verification & Cost Management View
 if "header" in st.session_state:
     header: InvoiceHeader = st.session_state["header"]
     st.subheader(f"Invoice Summary — {st.session_state.get('filename', '')}")
@@ -115,7 +132,7 @@ if "header" in st.session_state:
         c5.metric("Total Amount", f"${header.total_amount:.2f}")
 
         # Fee Segregation Expander
-        with st.expander("Segregated Non-Inventory Fees (Excluded from Product Unit Cost)"):
+        with st.expander("Segregated Non-Inventory Fees (Excluded from Single POS Unit Cost)"):
             f1, f2, f3, f4, f5 = st.columns(5)
             f1.metric("Tax", f"${header.fees.tax:.2f}")
             f2.metric("CRV / Deposit", f"${header.fees.deposit_crv:.2f}")
@@ -124,8 +141,8 @@ if "header" in st.session_state:
             f5.metric("Discounts", f"-${header.fees.discounts:.2f}")
 
         st.divider()
-        st.subheader("✏️ Human Verification & Template Editor (Excel Grid)")
-        st.caption("Rule 9: You can click and edit any cell directly in the grid below to fix OCR text, correct UPCs, or adjust costs.")
+        st.subheader("✏️ Single Unit Cost Management & Human Verification Grid")
+        st.caption("Rule 9: You can edit Case Cost, Approved POS Qty, Department, or Selling Price directly in the table below. Single POS Unit Cost is calculated automatically!")
 
         # Column Header Mapping Assignment
         with st.expander("🛠️ Column Header Mapping Controls", expanded=False):
@@ -134,31 +151,34 @@ if "header" in st.session_state:
             m1.selectbox("Map Vendor Item # Column", col_list, index=col_list.index("Vendor Item #"))
             m2.selectbox("Map UPC Column", col_list, index=col_list.index("UPC"))
             m3.selectbox("Map Description Column", col_list, index=col_list.index("Description"))
-            m4.selectbox("Map Unit Cost Column", col_list, index=col_list.index("Unit Cost ($)"))
+            m4.selectbox("Map Case Cost Column", col_list, index=col_list.index("Case Cost ($)"))
 
-        # Interactive Editable Excel-like Grid
+        # Interactive Editable Excel-like Grid with Single POS Unit Cost Management
         edited_df = st.data_editor(
             st.session_state["editor_df"],
             num_rows="dynamic",
             height=500,
             use_container_width=True,
-            key="interactive_grid",
+            key="interactive_cost_grid",
             column_config={
                 "Line #": st.column_config.NumberColumn(disabled=True),
                 "Vendor Item #": st.column_config.TextColumn("Vendor Item #", required=True),
                 "UPC": st.column_config.TextColumn("UPC Barcode"),
                 "Description": st.column_config.TextColumn("Product Description", width="large"),
+                "Department": st.column_config.SelectboxColumn("Department", options=['BEER', 'Candy', 'CBD', 'Cigs', 'Cigarilo', 'CIGAR', 'LIQUOR', 'SODA', 'VAPE', 'WINE', 'MISC']),
                 "Package": st.column_config.TextColumn("Package (e.g. C24, 6P)"),
                 "Case Qty": st.column_config.NumberColumn("Case Qty", format="%.2f"),
-                "Unit Cost ($)": st.column_config.NumberColumn("Unit Cost ($)", format="$%.2f"),
-                "Total Cost ($)": st.column_config.NumberColumn("Total Cost ($)", format="$%.2f"),
+                "Case Cost ($)": st.column_config.NumberColumn("Case Cost ($)", format="$%.2f"),
                 "Expected POS Qty": st.column_config.NumberColumn("Expected POS Qty", format="%.2f"),
-                "Approved Qty": st.column_config.NumberColumn("Approved Qty", format="%.2f")
+                "Approved Qty": st.column_config.NumberColumn("Approved POS Qty", format="%.2f"),
+                "Single POS Unit Cost ($)": st.column_config.NumberColumn("Single POS Unit Cost ($)", format="$%.2f", disabled=True),
+                "Total Line Cost ($)": st.column_config.NumberColumn("Total Line Cost ($)", format="$%.2f"),
+                "Retail Selling Price ($)": st.column_config.NumberColumn("Retail Selling Price ($)", format="$%.2f")
             }
         )
 
         st.write("")
-        if st.button("✅ Confirm & Save Verified Template Data", type="secondary"):
+        if st.button("✅ Confirm Single Unit Costs & Lock Verification", type="secondary"):
             updated_line_items = []
             for idx, row in edited_df.iterrows():
                 try:
@@ -168,7 +188,7 @@ if "header" in st.session_state:
                     desc = str(row.get("Description", "")).strip()
                     pkg = str(row.get("Package", "EA")).strip()
                     case_qty = Decimal(str(row.get("Case Qty", 1.0)))
-                    unit_cost = Decimal(str(row.get("Unit Cost ($)", 0.0)))
+                    case_cost = Decimal(str(row.get("Case Cost ($)", 0.0)))
                     approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
 
                     pos_qty, rule, req_rev, reason = converter.calculate_expected_pos_qty(
@@ -180,6 +200,9 @@ if "header" in st.session_state:
                         package_text=pkg
                     )
 
+                    total_cost = case_qty * case_cost
+                    single_unit_cost = (total_cost / approved_qty).quantize(Decimal('0.0001')) if approved_qty > Decimal('0') else case_cost
+
                     item = InvoiceLineItem(
                         line_number=line_num,
                         raw_item_num=item_code,
@@ -188,10 +211,11 @@ if "header" in st.session_state:
                         raw_package_text=pkg,
                         case_quantity=case_qty,
                         loose_quantity=Decimal('0'),
-                        unit_cost=unit_cost,
-                        total_cost=case_qty * unit_cost,
+                        unit_cost=single_unit_cost, # Store Single POS Unit Cost into Inventory.Cost!
+                        total_cost=total_cost,
                         expected_pos_qty=pos_qty,
                         approved_actual_good_qty=approved_qty,
+                        pos_unit_cost=single_unit_cost,
                         conversion_rule_used=rule,
                         review_state=ReviewState.REVIEWED_APPROVED
                     )
@@ -206,7 +230,7 @@ if "header" in st.session_state:
             st.session_state["header"] = header
             st.session_state["editor_df"] = edited_df
             st.session_state["is_verified"] = True
-            st.success(f"✅ Verified {len(updated_line_items)} items! Data template is locked and ready for database receiving.")
+            st.success(f"✅ Calculated & Verified Single POS Unit Costs for {len(updated_line_items)} items! Data is locked for database insertion.")
 
         # Post / Live DB Receiving Button
         st.divider()
@@ -215,7 +239,7 @@ if "header" in st.session_state:
         if shadow_mode:
             st.warning("⚠️ SHADOW MODE IS ON: Clicking execute will simulate queries without changing database. Toggle OFF 'Shadow Mode' in sidebar to write live data!")
         else:
-            st.info("🟢 LIVE MODE IS ACTIVE: Clicking execute will insert/update records directly into the Inventory and Inventory_SKUS database tables.")
+            st.info("🟢 LIVE MODE IS ACTIVE: Single Unit Costs & Stock will be updated directly in SQL Server Inventory.")
 
         db = CertifiedDBManager("config.json")
         if st.button("🚀 Execute Receiving & Write to DB", type="primary"):
@@ -224,7 +248,7 @@ if "header" in st.session_state:
                 for idx, row in edited_df.iterrows():
                     try:
                         case_qty = Decimal(str(row.get("Case Qty", 1.0)))
-                        unit_cost = Decimal(str(row.get("Unit Cost ($)", 0.0)))
+                        case_cost = Decimal(str(row.get("Case Cost ($)", 0.0)))
                         approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
                         item_code = str(row.get("Vendor Item #", "")).strip()
                         upc = str(row.get("UPC", "")).strip()
@@ -240,6 +264,9 @@ if "header" in st.session_state:
                             package_text=pkg
                         )
 
+                        total_cost = case_qty * case_cost
+                        single_unit_cost = (total_cost / approved_qty).quantize(Decimal('0.0001')) if approved_qty > Decimal('0') else case_cost
+
                         item = InvoiceLineItem(
                             line_number=idx + 1,
                             raw_item_num=item_code,
@@ -248,10 +275,11 @@ if "header" in st.session_state:
                             raw_package_text=pkg,
                             case_quantity=case_qty,
                             loose_quantity=Decimal('0'),
-                            unit_cost=unit_cost,
-                            total_cost=case_qty * unit_cost,
+                            unit_cost=single_unit_cost, # Single POS Unit Cost!
+                            total_cost=total_cost,
                             expected_pos_qty=pos_qty,
                             approved_actual_good_qty=approved_qty,
+                            pos_unit_cost=single_unit_cost,
                             conversion_rule_used=rule,
                             review_state=ReviewState.REVIEWED_APPROVED
                         )
@@ -264,7 +292,7 @@ if "header" in st.session_state:
             
             if "LIVE_SUCCESS" in res['status']:
                 st.balloons()
-                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items. Transaction ID: `{res['transaction_id']}`")
+                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items with Single POS Unit Costs. Transaction ID: `{res['transaction_id']}`")
             elif "SHADOW" in res['status']:
                 st.info(f"ℹ️ Shadow Audit Execution Completed for {res['items_reconciled']} items. Status: {res['status']}")
             else:
