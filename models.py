@@ -21,6 +21,17 @@ class ReviewState(Enum):
     POSTING_BLOCKED = auto()
 
 
+class ConversionRule(Enum):
+    RULE_12PK_TO_2 = "12PK_TO_2"
+    RULE_6PK_TO_4 = "6PK_TO_4"
+    RULE_4PK_TO_6 = "4PK_TO_6"
+    RULE_SINGLE_24OZ_TO_12 = "SINGLE_24OZ_TO_12"
+    RULE_24PK_TO_1 = "24PK_TO_1"
+    RULE_18PK_TO_1 = "18PK_TO_1"
+    RULE_8PK_TO_3 = "8PK_TO_3"
+    DEFAULT_1_TO_1 = "1_TO_1"
+
+
 @dataclass
 class InvoiceFees:
     """Non-inventory fee segregation model (Rules 8 & 11)."""
@@ -37,6 +48,10 @@ class InvoiceFees:
             self.tax + self.deposit_crv + self.freight_delivery +
             self.fuel_charge + self.service_fee - self.discounts
         )
+
+
+# Backward-compatible alias for InvoiceFees
+SegregatedFees = InvoiceFees
 
 
 @dataclass
