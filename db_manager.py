@@ -3,7 +3,7 @@ Certified Database Manager for CRE / POS Integration
 Enforces Rules 4, 12, 13, 14, 15, 17, 18:
 - CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price, and non-empty ItemName.
 - Automatic UPC Normalization (EAN-13, UPC-A, GTIN-11) & Dual-Field Storage (ItemNum + AltSKU + Helper_ItemNum).
-- Writes alternate barcode variants into Inventory_SKUS table for seamless POS scanning.
+- Writes primary ItemNum AND all alternate barcode variants into Inventory_SKUS table for 100% POS Alt SKU search compatibility.
 - Full Operational Logging & 1-Click Atomic Transaction Rollback.
 """
 
@@ -202,13 +202,15 @@ class CertifiedDBManager:
             desc = str(item.raw_description).strip() or f"ITEM {item.raw_item_num}"
 
             shadow_sql = (
-                f"-- SHADOW MODE SQL (CRE POS Scanner Enabled - Inactive=0, ItemType=0, Dirty=1):\n"
+                f"-- SHADOW MODE SQL (CRE POS Scanner & Alt SKU Enabled):\n"
                 f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{mapping['primary_item_num']}')\n"
                 f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, ItemName = '{desc[:30]}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
                 f"ELSE\n"
                 f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{desc[:30]}', {cost}, {price}, {qty}, '{mapping['helper_item_num']}', 0, 0, 1, 1, '{self.sample_dept_id}');\n"
             )
-            for alt in mapping['alt_skus']:
+            all_alts = set(mapping['alt_skus'])
+            all_alts.add(mapping['primary_item_num'])
+            for alt in all_alts:
                 shadow_sql += f"INSERT INTO Inventory_SKUS (Store_ID, ItemNum, AltSKU) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{alt}');\n"
 
             results['audit_log'].append(shadow_sql)
@@ -224,7 +226,7 @@ class CertifiedDBManager:
         transaction_id: str
     ) -> Dict[str, Any]:
         """
-        Executes live atomic receiving with CRE POS scanner compatibility flags (Inactive=0, ItemType=0, Dirty=1, Tax_1=1, non-empty ItemName).
+        Executes live atomic receiving with CRE POS Alt SKU search compatibility.
         """
         if not self.conn:
             if not self.connect():
@@ -325,10 +327,13 @@ class CertifiedDBManager:
                             (store_id, target_upc, desc, float(cost), float(price), float(add_qty), vendor_part, helper_upc)
                         )
 
-                # Upsert Alternate Barcodes into Inventory_SKUS table
+                # Upsert Primary ItemNum AND all alternate barcodes into Inventory_SKUS table
+                all_skus = set(upc_variants)
+                all_skus.add(target_upc) # Always include Primary ItemNum so Alt SKU radio button search works!
+
                 alts_added = []
-                for alt_code in upc_variants:
-                    if alt_code != target_upc and len(alt_code) >= 6:
+                for alt_code in all_skus:
+                    if len(alt_code) >= 4:
                         try:
                             if self.conn_type == 'pyodbc':
                                 cursor.execute(
