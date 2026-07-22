@@ -1,7 +1,7 @@
 """
 Certified Database Manager for CRE / POS Integration
 Enforces Rules 4, 12, 13, 14, 15, 17, 18:
-- CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price.
+- CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price, and non-empty ItemName.
 - Automatic UPC Normalization (EAN-13, UPC-A, GTIN-11) & Dual-Field Storage (ItemNum + AltSKU + Helper_ItemNum).
 - Writes alternate barcode variants into Inventory_SKUS table for seamless POS scanning.
 - Full Operational Logging & 1-Click Atomic Transaction Rollback.
@@ -24,8 +24,8 @@ from operational_logger import OperationalLogger
 class CertifiedDBManager:
     """
     Certified Database Manager guaranteeing transactional safety, shadow mode audit logs,
-    CRE POS scanner flags (Inactive=0, ItemType=0, Dirty=1, Price), dual-field AltSKU inventory upserts,
-    detailed operational logging, and 1-click rollbacks.
+    CRE POS scanner flags (Inactive=0, ItemType=0, Dirty=1, Price, non-empty ItemName),
+    dual-field AltSKU inventory upserts, detailed operational logging, and 1-click rollbacks.
     """
 
     def __init__(self, config_path: str = 'config.json'):
@@ -199,13 +199,14 @@ class CertifiedDBManager:
             qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
             cost = item.unit_cost
             price = cost * Decimal('1.30')
+            desc = str(item.raw_description).strip() or f"ITEM {item.raw_item_num}"
 
             shadow_sql = (
                 f"-- SHADOW MODE SQL (CRE POS Scanner Enabled - Inactive=0, ItemType=0, Dirty=1):\n"
                 f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{mapping['primary_item_num']}')\n"
-                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
+                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, ItemName = '{desc[:30]}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
                 f"ELSE\n"
-                f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{item.raw_description[:30]}', {cost}, {price}, {qty}, '{mapping['helper_item_num']}', 0, 0, 1, 1, '{self.sample_dept_id}');\n"
+                f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, Price, In_Stock, Helper_ItemNum, Inactive, ItemType, Dirty, Tax_1, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{desc[:30]}', {cost}, {price}, {qty}, '{mapping['helper_item_num']}', 0, 0, 1, 1, '{self.sample_dept_id}');\n"
             )
             for alt in mapping['alt_skus']:
                 shadow_sql += f"INSERT INTO Inventory_SKUS (Store_ID, ItemNum, AltSKU) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{alt}');\n"
@@ -223,7 +224,7 @@ class CertifiedDBManager:
         transaction_id: str
     ) -> Dict[str, Any]:
         """
-        Executes live atomic receiving with CRE POS scanner compatibility flags (Inactive=0, ItemType=0, Dirty=1, Tax_1=1).
+        Executes live atomic receiving with CRE POS scanner compatibility flags (Inactive=0, ItemType=0, Dirty=1, Tax_1=1, non-empty ItemName).
         """
         if not self.conn:
             if not self.connect():
@@ -247,7 +248,8 @@ class CertifiedDBManager:
                 add_qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
                 cost = item.unit_cost
                 price = cost * Decimal('1.30')
-                desc = str(item.raw_description)[:30]
+                desc = str(item.raw_description).strip() or f"ITEM {vendor_part or raw_upc[-6:]}"
+                desc = desc[:30]
 
                 # Generate Normalized UPC variants
                 upc_variants = list(self.normalizer.generate_variants(raw_upc))
@@ -259,7 +261,7 @@ class CertifiedDBManager:
                 query_args = upc_variants if upc_variants else [raw_upc]
 
                 cursor.execute(
-                    f"""SELECT ItemNum, In_Stock, Cost, Price FROM Inventory 
+                    f"""SELECT ItemNum, In_Stock, Cost, Price, ItemName FROM Inventory 
                         WHERE ItemNum IN ({query_placeholders}) 
                            OR Helper_ItemNum IN ({query_placeholders}) 
                            OR Vendor_Part_Num IN ({query_placeholders})
@@ -273,16 +275,18 @@ class CertifiedDBManager:
                     matched_upc = str(row[0]).strip()
                     initial_stock = Decimal(str(row[1])) if row[1] is not None else Decimal('0')
                     initial_cost = Decimal(str(row[2])) if row[2] is not None else Decimal('0.00')
+                    existing_name = str(row[4]).strip() if row[4] else ""
 
                     target_upc = matched_upc
                     helper_upc = upc_variants[0] if (upc_variants and upc_variants[0] != target_upc) else ""
+                    final_name = desc if (not existing_name or existing_name == '0.0') else existing_name
 
                     cursor.execute(
                         """UPDATE Inventory 
                            SET In_Stock = In_Stock + ?, Cost = ?, Price = CASE WHEN Price IS NULL OR Price = 0 THEN ? ELSE Price END,
-                               Vendor_Part_Num = ?, Helper_ItemNum = ?, Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1
+                               ItemName = ?, Vendor_Part_Num = ?, Helper_ItemNum = ?, Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1
                            WHERE ItemNum = ?""",
-                        (float(add_qty), float(cost), float(price), vendor_part, helper_upc, target_upc)
+                        (float(add_qty), float(cost), float(price), final_name, vendor_part, helper_upc, target_upc)
                     )
                 else:
                     action_type = "INSERT"
