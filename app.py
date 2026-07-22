@@ -1,5 +1,5 @@
 """
-Invoice Manager — Enterprise Web UI with Interactive Verification, Single Item Cost Calculation, & Rollback Dashboard
+Invoice Manager — Enterprise Web UI with Interactive Verification, Single Item Cost Calculation, & Dynamic Header Mapping Controls
 Enforces Rule 9 (Human Review), Rule 10 (Actual-Good Quantity), Rule 11 (Fee Segregation),
 Rule 13 (Atomic Transaction & Readback Reconciliation), Rule 14 (posting_enabled=False),
 Rule 15 (shadow_mode=True), and Rule 18 (Reconciliation).
@@ -28,7 +28,7 @@ from models import ReviewState, InvoiceHeader, InvoiceLineItem, SegregatedFees
 st.set_page_config(page_title="Enterprise Invoice Receiving Engine", page_icon="📄", layout="wide")
 
 st.title("Enterprise Invoice Receiving Engine")
-st.caption("Rule-Enforced Receiving, Single Item Cost Management, Interactive Excel Grid, & 1-Click Rollback Dashboard.")
+st.caption("Rule-Enforced Receiving, Single Item Cost Management, Interactive Excel Grid, & Dynamic Header Mapping.")
 
 # Sidebar Controls
 with st.sidebar:
@@ -142,18 +142,25 @@ if "header" in st.session_state:
 
         st.divider()
         st.subheader("✏️ Single Unit Cost Management & Human Verification Grid")
-        st.caption("Rule 9: You can edit Case Cost, Approved POS Qty, Department, or Selling Price directly in the table below. Single POS Unit Cost is calculated automatically!")
+        st.caption("Rule 9: Edit Case Cost, Approved POS Qty, Department, or Selling Price directly below. Single POS Unit Cost is calculated automatically!")
 
-        # Column Header Mapping Assignment
-        with st.expander("🛠️ Column Header Mapping Controls", expanded=False):
+        # Dynamic Column Header Mapping Controls
+        col_list = list(st.session_state["editor_df"].columns)
+        with st.expander("🛠️ Column Header Mapping Controls (For Custom CSV / Excel Uploads)", expanded=True):
+            st.caption("Select which column in your document or table maps to each POS inventory field:")
             m1, m2, m3, m4 = st.columns(4)
-            col_list = list(st.session_state["editor_df"].columns)
-            m1.selectbox("Map Vendor Item # Column", col_list, index=col_list.index("Vendor Item #"))
-            m2.selectbox("Map UPC Column", col_list, index=col_list.index("UPC"))
-            m3.selectbox("Map Description Column", col_list, index=col_list.index("Description"))
-            m4.selectbox("Map Case Cost Column", col_list, index=col_list.index("Case Cost ($)"))
+            
+            idx_v = col_list.index("Vendor Item #") if "Vendor Item #" in col_list else 0
+            idx_u = col_list.index("UPC") if "UPC" in col_list else 0
+            idx_d = col_list.index("Description") if "Description" in col_list else 0
+            idx_c = col_list.index("Case Cost ($)") if "Case Cost ($)" in col_list else 0
 
-        # Interactive Editable Excel-like Grid with Single POS Unit Cost Management
+            map_vendor_col = m1.selectbox("Map Vendor Item # Column", col_list, index=idx_v, key="map_vendor_col")
+            map_upc_col = m2.selectbox("Map UPC Column", col_list, index=idx_u, key="map_upc_col")
+            map_desc_col = m3.selectbox("Map Description Column", col_list, index=idx_d, key="map_desc_col")
+            map_cost_col = m4.selectbox("Map Case Cost Column", col_list, index=idx_c, key="map_cost_col")
+
+        # Interactive Editable Excel-like Grid
         edited_df = st.data_editor(
             st.session_state["editor_df"],
             num_rows="dynamic",
@@ -178,17 +185,17 @@ if "header" in st.session_state:
         )
 
         st.write("")
-        if st.button("✅ Confirm Single Unit Costs & Lock Verification", type="secondary"):
+        if st.button("✅ Confirm Mapped Data & Single Unit Costs", type="secondary"):
             updated_line_items = []
             for idx, row in edited_df.iterrows():
                 try:
                     line_num = int(row.get("Line #", idx + 1))
-                    item_code = str(row.get("Vendor Item #", "")).strip()
-                    upc = str(row.get("UPC", "")).strip()
-                    desc = str(row.get("Description", "")).strip()
+                    item_code = str(row.get(map_vendor_col, "")).strip()
+                    upc = str(row.get(map_upc_col, "")).strip()
+                    desc = str(row.get(map_desc_col, "")).strip()
                     pkg = str(row.get("Package", "EA")).strip()
                     case_qty = Decimal(str(row.get("Case Qty", 1.0)))
-                    case_cost = Decimal(str(row.get("Case Cost ($)", 0.0)))
+                    case_cost = Decimal(str(row.get(map_cost_col, 0.0)))
                     approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
 
                     pos_qty, rule, req_rev, reason = converter.calculate_expected_pos_qty(
@@ -230,7 +237,7 @@ if "header" in st.session_state:
             st.session_state["header"] = header
             st.session_state["editor_df"] = edited_df
             st.session_state["is_verified"] = True
-            st.success(f"✅ Calculated & Verified Single POS Unit Costs for {len(updated_line_items)} items! Data is locked for database insertion.")
+            st.success(f"✅ Verified {len(updated_line_items)} items using mapped columns (`{map_vendor_col}`, `{map_upc_col}`, `{map_desc_col}`, `{map_cost_col}`)!")
 
         # Post / Live DB Receiving Button
         st.divider()
@@ -248,11 +255,11 @@ if "header" in st.session_state:
                 for idx, row in edited_df.iterrows():
                     try:
                         case_qty = Decimal(str(row.get("Case Qty", 1.0)))
-                        case_cost = Decimal(str(row.get("Case Cost ($)", 0.0)))
+                        case_cost = Decimal(str(row.get(map_cost_col, 0.0)))
                         approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
-                        item_code = str(row.get("Vendor Item #", "")).strip()
-                        upc = str(row.get("UPC", "")).strip()
-                        desc = str(row.get("Description", "")).strip()
+                        item_code = str(row.get(map_vendor_col, "")).strip()
+                        upc = str(row.get(map_upc_col, "")).strip()
+                        desc = str(row.get(map_desc_col, "")).strip()
                         pkg = str(row.get("Package", "EA")).strip()
 
                         pos_qty, rule, req_rev, reason = converter.calculate_expected_pos_qty(
@@ -292,7 +299,7 @@ if "header" in st.session_state:
             
             if "LIVE_SUCCESS" in res['status']:
                 st.balloons()
-                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items with Single POS Unit Costs. Transaction ID: `{res['transaction_id']}`")
+                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items. Transaction ID: `{res['transaction_id']}`")
             elif "SHADOW" in res['status']:
                 st.info(f"ℹ️ Shadow Audit Execution Completed for {res['items_reconciled']} items. Status: {res['status']}")
             else:

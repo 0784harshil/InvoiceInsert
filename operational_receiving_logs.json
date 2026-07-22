@@ -1,5 +1,1591 @@
 [
   {
+    "transaction_id": "TXN-20260722015130-101076601",
+    "timestamp": "2026-07-22T01:51:34.499871",
+    "invoice_number": "101076601",
+    "vendor_name": "Chicago Beverage Systems",
+    "store_id": "1001",
+    "status": "LIVE_SUCCESS (PYODBC)",
+    "execution_mode": "LIVE",
+    "item_count": 101,
+    "rolled_back": false,
+    "rollback_timestamp": null,
+    "items_detail": [
+      {
+        "item_num": "0603675263680",
+        "description": "ALLAGASH SURF HOUSE C24 12OZ 6",
+        "action_type": "UPDATE",
+        "initial_stock": 35.0,
+        "added_qty": 4.0,
+        "final_stock": 39.0,
+        "initial_cost": 10.335,
+        "new_cost": 10.335,
+        "alt_skus_added": [
+          "0603675263680",
+          "64618",
+          "603675263680"
+        ]
+      },
+      {
+        "item_num": "038766361202",
+        "description": "ASAHI SUPER DRY B24 11.2OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 67.0,
+        "added_qty": 8.0,
+        "final_stock": 75.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "10585",
+          "038766361202",
+          "38766361202",
+          "0038766361202"
+        ]
+      },
+      {
+        "item_num": "810082770940",
+        "description": "ASAHI SUPER DRY C24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 11817.0,
+        "added_qty": 2.0,
+        "final_stock": 11819.0,
+        "initial_cost": 17.9,
+        "new_cost": 17.9,
+        "alt_skus_added": [
+          "11801",
+          "0810082770940",
+          "810082770940"
+        ]
+      },
+      {
+        "item_num": "855352008941",
+        "description": "ATHLETIC NA LITE C24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.3625,
+        "new_cost": 8.3625,
+        "alt_skus_added": [
+          "57023",
+          "0855352008941",
+          "855352008941"
+        ]
+      },
+      {
+        "item_num": "740522110688",
+        "description": "BELLS OBERON ALE C24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "0740522110688",
+          "740522110688",
+          "57291"
+        ]
+      },
+      {
+        "item_num": "740522100160",
+        "description": "BELLS OBERON ALE B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "740522100160",
+          "0740522100160",
+          "15650"
+        ]
+      },
+      {
+        "item_num": "740522110664",
+        "description": "BELLS OBERON ALE C24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 32.0,
+        "added_qty": 4.0,
+        "final_stock": 36.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "0740522110664",
+          "42928",
+          "740522110664"
+        ]
+      },
+      {
+        "item_num": "740522437808",
+        "description": "BELLS OBERON LIGHT C24 12OZ 12",
+        "action_type": "UPDATE",
+        "initial_stock": 1.0,
+        "added_qty": 0.0,
+        "final_stock": 1.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "66819",
+          "0740522437808",
+          "740522437808"
+        ]
+      },
+      {
+        "item_num": "740522100832",
+        "description": "BELLS TWO HEARTED ALE B24 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.9875,
+        "new_cost": 8.9875,
+        "alt_skus_added": [
+          "740522100832",
+          "0740522100832",
+          "15647"
+        ]
+      },
+      {
+        "item_num": "740522110862",
+        "description": "BELLS TWO HEARTED ALE C24 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 17.0,
+        "added_qty": 2.0,
+        "final_stock": 19.0,
+        "initial_cost": 16.45,
+        "new_cost": 16.45,
+        "alt_skus_added": [
+          "740522110862",
+          "42869",
+          "0740522110862"
+        ]
+      },
+      {
+        "item_num": "815829010068",
+        "description": "CAYMAN JACK MARGARITA B24 11.2",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "17592",
+          "815829010068",
+          "0815829010068"
+        ]
+      },
+      {
+        "item_num": "635985000525",
+        "description": "CAYMAN JACK MANGO MARGARITA B2",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "70251",
+          "0635985000525",
+          "635985000525"
+        ]
+      },
+      {
+        "item_num": "071990300173",
+        "description": "COORS LIGHT C18 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 41.0,
+        "added_qty": 5.0,
+        "final_stock": 46.0,
+        "initial_cost": 15.2,
+        "new_cost": 15.2,
+        "alt_skus_added": [
+          "71990300173",
+          "071990300173",
+          "0071990300173",
+          "10238"
+        ]
+      },
+      {
+        "item_num": "071990000486",
+        "description": "COORS LIGHT C24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 32.0,
+        "added_qty": 4.0,
+        "final_stock": 36.0,
+        "initial_cost": 10.45,
+        "new_cost": 10.45,
+        "alt_skus_added": [
+          "10230",
+          "071990000486",
+          "0071990000486",
+          "71990000486"
+        ]
+      },
+      {
+        "item_num": "071990300654",
+        "description": "COORS LIGHT C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 97.0,
+        "added_qty": 12.0,
+        "final_stock": 109.0,
+        "initial_cost": 2.0875,
+        "new_cost": 2.0875,
+        "alt_skus_added": [
+          "0071990300654",
+          "10240",
+          "071990300654",
+          "71990300654"
+        ]
+      },
+      {
+        "item_num": "080660956152",
+        "description": "CORONA EXTRA B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 145.0,
+        "added_qty": 18.0,
+        "final_stock": 163.0,
+        "initial_cost": 16.2,
+        "new_cost": 16.2,
+        "alt_skus_added": [
+          "0080660956152",
+          "10159",
+          "080660956152",
+          "80660956152"
+        ]
+      },
+      {
+        "item_num": "080660956954",
+        "description": "CORONA EXTRA C24 12OZ 12PSL",
+        "action_type": "UPDATE",
+        "initial_stock": 17.0,
+        "added_qty": 2.0,
+        "final_stock": 19.0,
+        "initial_cost": 32.4,
+        "new_cost": 32.4,
+        "alt_skus_added": [
+          "0080660956954",
+          "11319",
+          "80660956954",
+          "080660956954"
+        ]
+      },
+      {
+        "item_num": "080660956053",
+        "description": "CORONA EXTRA B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 63.0,
+        "added_qty": 8.0,
+        "final_stock": 71.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "0080660956053",
+          "080660956053",
+          "10157",
+          "80660956053"
+        ]
+      },
+      {
+        "item_num": "080660956831",
+        "description": "CORONA FAMILAR B12 32OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 9.0,
+        "added_qty": 1.0,
+        "final_stock": 10.0,
+        "initial_cost": 38.7,
+        "new_cost": 38.7,
+        "alt_skus_added": [
+          "14990",
+          "080660956831",
+          "0080660956831",
+          "80660956831"
+        ]
+      },
+      {
+        "item_num": "080660956756",
+        "description": "CORONA LIGHT B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 17.0,
+        "added_qty": 2.0,
+        "final_stock": 19.0,
+        "initial_cost": 16.2,
+        "new_cost": 16.2,
+        "alt_skus_added": [
+          "0080660956756",
+          "10165",
+          "080660956756",
+          "80660956756"
+        ]
+      },
+      {
+        "item_num": "080660956213",
+        "description": "CORONA LIGHT C24 12OZ 12PSL",
+        "action_type": "UPDATE",
+        "initial_stock": 19.0,
+        "added_qty": 2.0,
+        "final_stock": 21.0,
+        "initial_cost": 32.4,
+        "new_cost": 32.4,
+        "alt_skus_added": [
+          "13241",
+          "080660956213",
+          "80660956213",
+          "0080660956213"
+        ]
+      },
+      {
+        "item_num": "080660956251",
+        "description": "CORONA LIGHT B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "10163",
+          "0080660956251",
+          "080660956251",
+          "80660956251"
+        ]
+      },
+      {
+        "item_num": "033544950418",
+        "description": "CORONA PREMIER B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 74.0,
+        "added_qty": 4.0,
+        "final_stock": 78.0,
+        "initial_cost": 6.8875,
+        "new_cost": 6.8875,
+        "alt_skus_added": [
+          "033544950418",
+          "35678",
+          "33544950418",
+          "0033544950418"
+        ]
+      },
+      {
+        "item_num": "0684746400500",
+        "description": "CLUBTAILS SUNNY MARGARITA C12",
+        "action_type": "UPDATE",
+        "initial_stock": 98.0,
+        "added_qty": 12.0,
+        "final_stock": 110.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "41268",
+          "684746400500",
+          "0684746400500"
+        ]
+      },
+      {
+        "item_num": "083820123685",
+        "description": "GUINNESS DRAUGHT C24 14.9OZ 8P",
+        "action_type": "UPDATE",
+        "initial_stock": 124.0,
+        "added_qty": 15.0,
+        "final_stock": 139.0,
+        "initial_cost": 12.6833,
+        "new_cost": 12.6833,
+        "alt_skus_added": [
+          "0083820123685",
+          "083820123685",
+          "10327",
+          "83820123685"
+        ]
+      },
+      {
+        "item_num": "083820234800",
+        "description": "GUINNESS STOUT B12 22OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 30.95,
+        "new_cost": 30.95,
+        "alt_skus_added": [
+          "083820234800",
+          "10325",
+          "0083820234800",
+          "83820234800"
+        ]
+      },
+      {
+        "item_num": "0850438002202",
+        "description": "HALF ACRE SLOW MELT C24 12OZ 6",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.9875,
+        "new_cost": 8.9875,
+        "alt_skus_added": [
+          "0850438002202",
+          "850438002202",
+          "66313"
+        ]
+      },
+      {
+        "item_num": "0850438002509",
+        "description": "HALF ACRE VALLEJO C24 16OZ 4P",
+        "action_type": "UPDATE",
+        "initial_stock": 50.0,
+        "added_qty": 6.0,
+        "final_stock": 56.0,
+        "initial_cost": 9.0,
+        "new_cost": 9.0,
+        "alt_skus_added": [
+          "0850438002509",
+          "27645",
+          "850438002509"
+        ]
+      },
+      {
+        "item_num": "034100001735",
+        "description": "HAMMS C24 16OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 76.0,
+        "added_qty": 8.0,
+        "final_stock": 84.0,
+        "initial_cost": 5.3125,
+        "new_cost": 5.3125,
+        "alt_skus_added": [
+          "17862",
+          "34100001735",
+          "034100001735",
+          "0034100001735"
+        ]
+      },
+      {
+        "item_num": "072890000835",
+        "description": "HEINEKEN C24 16OZ 4P",
+        "action_type": "UPDATE",
+        "initial_stock": 152.0,
+        "added_qty": 18.0,
+        "final_stock": 170.0,
+        "initial_cost": 5.8833,
+        "new_cost": 5.8833,
+        "alt_skus_added": [
+          "072890000835",
+          "0072890000835",
+          "72890000835",
+          "10302"
+        ]
+      },
+      {
+        "item_num": "072890001191",
+        "description": "HEINEKEN C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 98.0,
+        "added_qty": 12.0,
+        "final_stock": 110.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "10303",
+          "72890001191",
+          "072890001191",
+          "0072890001191"
+        ]
+      },
+      {
+        "item_num": "072890003102",
+        "description": "HEINEKEN 0.0 NECTARINE JUNIPER",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "70324",
+          "72890003102",
+          "072890003102",
+          "0072890003102"
+        ]
+      },
+      {
+        "item_num": "049483262062",
+        "description": "HACKER-PSCHORR WEISSBIER B24 1",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "14485",
+          "049483262062",
+          "0049483262062",
+          "49483262062"
+        ]
+      },
+      {
+        "item_num": "082000723851",
+        "description": "SMIRNOFF ICE ORIGINAL B24 11.2",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "082000723851",
+          "82000723851",
+          "10358",
+          "0082000723851"
+        ]
+      },
+      {
+        "item_num": "0723830014190",
+        "description": "LAGUNITAS A LITTLE SUMPIN SUMP",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 31.12,
+        "new_cost": 31.12,
+        "alt_skus_added": [
+          "50370",
+          "723830014190",
+          "0723830014190"
+        ]
+      },
+      {
+        "item_num": "0723830116122",
+        "description": "LAGUNITAS NA HOPPY REFRESHER V",
+        "action_type": "UPDATE",
+        "initial_stock": 18.0,
+        "added_qty": 2.0,
+        "final_stock": 20.0,
+        "initial_cost": 13.615,
+        "new_cost": 13.615,
+        "alt_skus_added": [
+          "723830116122",
+          "59243",
+          "0723830116122"
+        ]
+      },
+      {
+        "item_num": "034100576363",
+        "description": "LITE C24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 129.0,
+        "added_qty": 16.0,
+        "final_stock": 145.0,
+        "initial_cost": 10.45,
+        "new_cost": 10.45,
+        "alt_skus_added": [
+          "0034100576363",
+          "10055",
+          "34100576363",
+          "034100576363"
+        ]
+      },
+      {
+        "item_num": "034100003555",
+        "description": "LITE C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 194.0,
+        "added_qty": 24.0,
+        "final_stock": 218.0,
+        "initial_cost": 2.0875,
+        "new_cost": 2.0875,
+        "alt_skus_added": [
+          "10054",
+          "34100003555",
+          "034100003555",
+          "0034100003555"
+        ]
+      },
+      {
+        "item_num": "034100576530",
+        "description": "LITE C24 16OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 14887.0,
+        "added_qty": 4.0,
+        "final_stock": 14891.0,
+        "initial_cost": 13.1,
+        "new_cost": 13.1,
+        "alt_skus_added": [
+          "34100576530",
+          "14855",
+          "034100576530",
+          "0034100576530"
+        ]
+      },
+      {
+        "item_num": "860003623411",
+        "description": "LONE RIVER RANCH WATER SPICY C",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "53476",
+          "0860003623411",
+          "860003623411"
+        ]
+      },
+      {
+        "item_num": "034100015091",
+        "description": "MHL B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 63.0,
+        "added_qty": 8.0,
+        "final_stock": 71.0,
+        "initial_cost": 8.95,
+        "new_cost": 8.95,
+        "alt_skus_added": [
+          "10094",
+          "0034100015091",
+          "34100015091",
+          "034100015091"
+        ]
+      },
+      {
+        "item_num": "034100016364",
+        "description": "MHL C24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 62.0,
+        "added_qty": 8.0,
+        "final_stock": 70.0,
+        "initial_cost": 8.6,
+        "new_cost": 8.6,
+        "alt_skus_added": [
+          "10100",
+          "034100016364",
+          "34100016364",
+          "0034100016364"
+        ]
+      },
+      {
+        "item_num": "034100015053",
+        "description": "MHL B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 2.0,
+        "added_qty": 0.0,
+        "final_stock": 2.0,
+        "initial_cost": 20.6,
+        "new_cost": 20.6,
+        "alt_skus_added": [
+          "0034100015053",
+          "034100015053",
+          "10091",
+          "34100015053"
+        ]
+      },
+      {
+        "item_num": "034100013417",
+        "description": "MHL C30 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 107.0,
+        "added_qty": 13.0,
+        "final_stock": 120.0,
+        "initial_cost": 18.8,
+        "new_cost": 18.8,
+        "alt_skus_added": [
+          "34100013417",
+          "0034100013417",
+          "034100013417",
+          "10097"
+        ]
+      },
+      {
+        "item_num": "080660957654",
+        "description": "MODELO ESP B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 65.0,
+        "added_qty": 8.0,
+        "final_stock": 73.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "10168",
+          "80660957654",
+          "0080660957654",
+          "080660957654"
+        ]
+      },
+      {
+        "item_num": "080660957777",
+        "description": "MODELO ESP B12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 97.0,
+        "added_qty": 12.0,
+        "final_stock": 109.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "080660957777",
+          "0080660957777",
+          "17948",
+          "80660957777"
+        ]
+      },
+      {
+        "item_num": "080660957210",
+        "description": "MODELO ESP C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 278.0,
+        "added_qty": 36.0,
+        "final_stock": 314.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "10167",
+          "080660957210",
+          "0080660957210",
+          "80660957210"
+        ]
+      },
+      {
+        "item_num": "080660957579",
+        "description": "MODELO ESP B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 129.0,
+        "added_qty": 16.0,
+        "final_stock": 145.0,
+        "initial_cost": 16.2,
+        "new_cost": 16.2,
+        "alt_skus_added": [
+          "80660957579",
+          "080660957579",
+          "10169",
+          "0080660957579"
+        ]
+      },
+      {
+        "item_num": "080660957104",
+        "description": "MODELO ESP C24 12OZ LSE",
+        "action_type": "UPDATE",
+        "initial_stock": 73.0,
+        "added_qty": 9.0,
+        "final_stock": 82.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "080660957104",
+          "80660957104",
+          "13568",
+          "0080660957104"
+        ]
+      },
+      {
+        "item_num": "033544950609",
+        "description": "MODELO CHELADA LIMON Y SAL C12",
+        "action_type": "UPDATE",
+        "initial_stock": 96.0,
+        "added_qty": 12.0,
+        "final_stock": 108.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "43975",
+          "0033544950609",
+          "033544950609",
+          "33544950609"
+        ]
+      },
+      {
+        "item_num": "033544000267",
+        "description": "MODELO CHELADA MANGO Y CHILE C",
+        "action_type": "UPDATE",
+        "initial_stock": 97.0,
+        "added_qty": 12.0,
+        "final_stock": 109.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "48368",
+          "0033544000267",
+          "33544000267",
+          "033544000267"
+        ]
+      },
+      {
+        "item_num": "080660957876",
+        "description": "MODELO NEGRA B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 17.0,
+        "added_qty": 2.0,
+        "final_stock": 19.0,
+        "initial_cost": 16.2,
+        "new_cost": 16.2,
+        "alt_skus_added": [
+          "080660957876",
+          "0080660957876",
+          "10173",
+          "80660957876"
+        ]
+      },
+      {
+        "item_num": "033544000809",
+        "description": "MODELO CHELADA PINA PICANTE C1",
+        "action_type": "UPDATE",
+        "initial_stock": 96.0,
+        "added_qty": 12.0,
+        "final_stock": 108.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "0033544000809",
+          "033544000809",
+          "33544000809",
+          "53495"
+        ]
+      },
+      {
+        "item_num": "818490010580",
+        "description": "MONTUCKY C24 16OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 6.8375,
+        "new_cost": 6.8375,
+        "alt_skus_added": [
+          "818490010580",
+          "50499",
+          "0818490010580"
+        ]
+      },
+      {
+        "item_num": "033544950319",
+        "description": "PACIFICO C24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 16.2,
+        "new_cost": 16.2,
+        "alt_skus_added": [
+          "0033544950319",
+          "033544950319",
+          "35350",
+          "33544950319"
+        ]
+      },
+      {
+        "item_num": "080660953151",
+        "description": "PACIFICO B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 49.0,
+        "added_qty": 6.0,
+        "final_stock": 55.0,
+        "initial_cost": 16.2,
+        "new_cost": 16.2,
+        "alt_skus_added": [
+          "10176",
+          "0080660953151",
+          "80660953151",
+          "080660953151"
+        ]
+      },
+      {
+        "item_num": "080660953052",
+        "description": "PACIFICO B12 32OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 14999.0,
+        "added_qty": 1.0,
+        "final_stock": 15000.0,
+        "initial_cost": 38.7,
+        "new_cost": 38.7,
+        "alt_skus_added": [
+          "0080660953052",
+          "080660953052",
+          "14991",
+          "80660953052"
+        ]
+      },
+      {
+        "item_num": "033544950227",
+        "description": "PACIFICO C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 98.0,
+        "added_qty": 12.0,
+        "final_stock": 110.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "30491",
+          "33544950227",
+          "033544950227",
+          "0033544950227"
+        ]
+      },
+      {
+        "item_num": "080660953014",
+        "description": "PACIFICO B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 39.0,
+        "added_qty": 4.0,
+        "final_stock": 43.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "10174",
+          "080660953014",
+          "80660953014",
+          "0080660953014"
+        ]
+      },
+      {
+        "item_num": "181954000046",
+        "description": "PERONI B24 12OZ 12P",
+        "action_type": "UPDATE",
+        "initial_stock": 35.0,
+        "added_qty": 4.0,
+        "final_stock": 39.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "0181954000046",
+          "10127",
+          "181954000046"
+        ]
+      },
+      {
+        "item_num": "181954000022",
+        "description": "PERONI B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 66.0,
+        "added_qty": 8.0,
+        "final_stock": 74.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "10126",
+          "0181954000022",
+          "181954000022"
+        ]
+      },
+      {
+        "item_num": "181954001074",
+        "description": "PERONI 0.0 B24 11.2OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.9125,
+        "new_cost": 8.9125,
+        "alt_skus_added": [
+          "59726",
+          "181954001074",
+          "0181954001074"
+        ]
+      },
+      {
+        "item_num": "072311133029",
+        "description": "PILSNER URQUEL C24 500ML 4P",
+        "action_type": "UPDATE",
+        "initial_stock": 97.0,
+        "added_qty": 12.0,
+        "final_stock": 109.0,
+        "initial_cost": 5.8833,
+        "new_cost": 5.8833,
+        "alt_skus_added": [
+          "10135",
+          "72311133029",
+          "072311133029",
+          "0072311133029"
+        ]
+      },
+      {
+        "item_num": "083820567939",
+        "description": "RED STRIPE B24 11.2OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 7.7875,
+        "new_cost": 7.7875,
+        "alt_skus_added": [
+          "14316",
+          "0083820567939",
+          "083820567939",
+          "83820567939"
+        ]
+      },
+      {
+        "item_num": "851464003089",
+        "description": "REV BREW ANTI HERO IPA C24 12O",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.9875,
+        "new_cost": 8.9875,
+        "alt_skus_added": [
+          "21276",
+          "0851464003089",
+          "851464003089"
+        ]
+      },
+      {
+        "item_num": "851464003492",
+        "description": "REV BREW PILSNER C24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.9875,
+        "new_cost": 8.9875,
+        "alt_skus_added": [
+          "31235",
+          "0851464003492",
+          "851464003492"
+        ]
+      },
+      {
+        "item_num": "851464003812",
+        "description": "REV BREW FREEDOM VARIETY C24 1",
+        "action_type": "UPDATE",
+        "initial_stock": 49.0,
+        "added_qty": 6.0,
+        "final_stock": 55.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "52051",
+          "0851464003812",
+          "851464003812"
+        ]
+      },
+      {
+        "item_num": "850061959065",
+        "description": "REV BREW X HERO JUICY RUSH C12",
+        "action_type": "UPDATE",
+        "initial_stock": 9.0,
+        "added_qty": 1.0,
+        "final_stock": 10.0,
+        "initial_cost": 30.95,
+        "new_cost": 30.95,
+        "alt_skus_added": [
+          "0850061959065",
+          "65764",
+          "850061959065"
+        ]
+      },
+      {
+        "item_num": "850061959058",
+        "description": "REV BREW X HERO JUICY RUSH C24",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 8.9875,
+        "new_cost": 8.9875,
+        "alt_skus_added": [
+          "65800",
+          "0850061959058",
+          "850061959058"
+        ]
+      },
+      {
+        "item_num": "083783531114",
+        "description": "SIERRA NEVADA HAZY LITTLE THIN",
+        "action_type": "UPDATE",
+        "initial_stock": 33.0,
+        "added_qty": 4.0,
+        "final_stock": 37.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "083783531114",
+          "0083783531114",
+          "43918",
+          "83783531114"
+        ]
+      },
+      {
+        "item_num": "083783375121",
+        "description": "SIERRA NEVADA PALE ALE B24 12O",
+        "action_type": "UPDATE",
+        "initial_stock": 17.0,
+        "added_qty": 2.0,
+        "final_stock": 19.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "0083783375121",
+          "083783375121",
+          "83783375121",
+          "10488"
+        ]
+      },
+      {
+        "item_num": "810016490814",
+        "description": "SOLEMN OATH LU KOLSCH C24 16OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 49.0,
+        "added_qty": 6.0,
+        "final_stock": 55.0,
+        "initial_cost": 9.0,
+        "new_cost": 9.0,
+        "alt_skus_added": [
+          "55733",
+          "810016490814",
+          "0810016490814"
+        ]
+      },
+      {
+        "item_num": "087692006862",
+        "description": "TRULY BERRY MIX PACK VARIETY C",
+        "action_type": "UPDATE",
+        "initial_stock": 9.0,
+        "added_qty": 1.0,
+        "final_stock": 10.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "0087692006862",
+          "87692006862",
+          "38903",
+          "087692006862"
+        ]
+      },
+      {
+        "item_num": "087692004240",
+        "description": "TRULY CITRUS MIX PACK VARIETY",
+        "action_type": "UPDATE",
+        "initial_stock": 9.0,
+        "added_qty": 1.0,
+        "final_stock": 10.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "32249",
+          "0087692004240",
+          "087692004240",
+          "87692004240"
+        ]
+      },
+      {
+        "item_num": "087692009917",
+        "description": "TRULY LEMONADE VARIETY C24 12O",
+        "action_type": "UPDATE",
+        "initial_stock": 26.0,
+        "added_qty": 3.0,
+        "final_stock": 29.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "087692009917",
+          "87692009917",
+          "48349",
+          "0087692009917"
+        ]
+      },
+      {
+        "item_num": "092000013067",
+        "description": "TSINGTAO B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 36.0,
+        "added_qty": 4.0,
+        "final_stock": 40.0,
+        "initial_cost": 10.5,
+        "new_cost": 10.5,
+        "alt_skus_added": [
+          "0092000013067",
+          "092000013067",
+          "10185",
+          "92000013067"
+        ]
+      },
+      {
+        "item_num": "087692752318",
+        "description": "TWISTED TEA HALF AND HALF C12",
+        "action_type": "UPDATE",
+        "initial_stock": 93.0,
+        "added_qty": 12.0,
+        "final_stock": 105.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "87692752318",
+          "087692752318",
+          "15340",
+          "0087692752318"
+        ]
+      },
+      {
+        "item_num": "087692832317",
+        "description": "TWISTED TEA ORIGINAL C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 94.0,
+        "added_qty": 12.0,
+        "final_stock": 106.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "87692832317",
+          "087692832317",
+          "0087692832317",
+          "13599"
+        ]
+      },
+      {
+        "item_num": "087692831341",
+        "description": "TWISTED TEA ORIGINAL C24 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 18.0,
+        "added_qty": 2.0,
+        "final_stock": 20.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "0087692831341",
+          "87692831341",
+          "11137",
+          "087692831341"
+        ]
+      },
+      {
+        "item_num": "087692003786",
+        "description": "TWISTED TEA PARTY PACK C24 12O",
+        "action_type": "UPDATE",
+        "initial_stock": 26.0,
+        "added_qty": 2.0,
+        "final_stock": 28.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "0087692003786",
+          "32010",
+          "087692003786",
+          "87692003786"
+        ]
+      },
+      {
+        "item_num": "087692852315",
+        "description": "TWISTED TEA RASPBERRY C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 193.0,
+        "added_qty": 24.0,
+        "final_stock": 217.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "87692852315",
+          "0087692852315",
+          "15342",
+          "087692852315"
+        ]
+      },
+      {
+        "item_num": "087692015161",
+        "description": "TWISTED TEA LIGHT VARIETY C24",
+        "action_type": "UPDATE",
+        "initial_stock": 51.0,
+        "added_qty": 6.0,
+        "final_stock": 57.0,
+        "initial_cost": 15.95,
+        "new_cost": 15.95,
+        "alt_skus_added": [
+          "58253",
+          "087692015161",
+          "0087692015161",
+          "87692015161"
+        ]
+      },
+      {
+        "item_num": "0835609001116",
+        "description": "TYSKIE C24 500ML 4P",
+        "action_type": "UPDATE",
+        "initial_stock": 52.0,
+        "added_qty": 6.0,
+        "final_stock": 58.0,
+        "initial_cost": 4.8333,
+        "new_cost": 4.8333,
+        "alt_skus_added": [
+          "0835609001116",
+          "835609001116",
+          "19017"
+        ]
+      },
+      {
+        "item_num": "0630279376362",
+        "description": "VICTORY BREW C BERRY MONKEY C2",
+        "action_type": "UPDATE",
+        "initial_stock": 36.0,
+        "added_qty": 4.0,
+        "final_stock": 40.0,
+        "initial_cost": 9.2,
+        "new_cost": 9.2,
+        "alt_skus_added": [
+          "0630279376362",
+          "630279376362",
+          "56362"
+        ]
+      },
+      {
+        "item_num": "080660958811",
+        "description": "VICTORIA B24 12OZ 6P",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 8.75,
+        "new_cost": 8.75,
+        "alt_skus_added": [
+          "080660958811",
+          "80660958811",
+          "14844",
+          "0080660958811"
+        ]
+      },
+      {
+        "item_num": "033544001745",
+        "description": "VICTORIA VICKY CHAMOY C12 24OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 102.0,
+        "added_qty": 12.0,
+        "final_stock": 114.0,
+        "initial_cost": 2.5792,
+        "new_cost": 2.5792,
+        "alt_skus_added": [
+          "33544001745",
+          "033544001745",
+          "0033544001745",
+          "58241"
+        ]
+      },
+      {
+        "item_num": "0635985260899",
+        "description": "WHITE CLAW HARD SELTZER BLACK",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "635985260899",
+          "0635985260899",
+          "41305"
+        ]
+      },
+      {
+        "item_num": "0635985803645",
+        "description": "WHITE CLAW HARD SELTZER GRAPE",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 35.65,
+        "new_cost": 35.65,
+        "alt_skus_added": [
+          "635985803645",
+          "0635985803645",
+          "66206"
+        ]
+      },
+      {
+        "item_num": "0635985025986",
+        "description": "WHITE CLAW HARD SELTZER NATURA",
+        "action_type": "UPDATE",
+        "initial_stock": 46.0,
+        "added_qty": 4.0,
+        "final_stock": 50.0,
+        "initial_cost": 8.9125,
+        "new_cost": 8.9125,
+        "alt_skus_added": [
+          "0635985025986",
+          "31916",
+          "635985025986"
+        ]
+      },
+      {
+        "item_num": "0635985802136",
+        "description": "WHITE CLAW HARD SELTZER MANGO",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 30.95,
+        "new_cost": 30.95,
+        "alt_skus_added": [
+          "0635985802136",
+          "635985802136",
+          "45706"
+        ]
+      },
+      {
+        "item_num": "0635985260660",
+        "description": "WHITE CLAW HARD SELTZER RASPBE",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 35.65,
+        "new_cost": 35.65,
+        "alt_skus_added": [
+          "41369",
+          "0635985260660",
+          "635985260660"
+        ]
+      },
+      {
+        "item_num": "0635985802075",
+        "description": "WHITE CLAW SURGE BLOOD ORANGE",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 30.95,
+        "new_cost": 30.95,
+        "alt_skus_added": [
+          "635985802075",
+          "59582",
+          "0635985802075"
+        ]
+      },
+      {
+        "item_num": "0635985803690",
+        "description": "WHITE CLAW SURGE BLUEBERRY C12",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 30.95,
+        "new_cost": 30.95,
+        "alt_skus_added": [
+          "0635985803690",
+          "635985803690",
+          "66123"
+        ]
+      },
+      {
+        "item_num": "0635985802082",
+        "description": "WHITE CLAW SURGE CRANBERRY C12",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 30.95,
+        "new_cost": 30.95,
+        "alt_skus_added": [
+          "59583",
+          "0635985802082",
+          "635985802082"
+        ]
+      },
+      {
+        "item_num": "0635985800804",
+        "description": "WHITE CLAW SURGE VARIETY C24 1",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "53452",
+          "635985800804",
+          "0635985800804"
+        ]
+      },
+      {
+        "item_num": "0635985802525",
+        "description": "WHITE CLAW SURGE VARIETY PACK",
+        "action_type": "UPDATE",
+        "initial_stock": 10.0,
+        "added_qty": 1.0,
+        "final_stock": 11.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "0635985802525",
+          "63883",
+          "635985802525"
+        ]
+      },
+      {
+        "item_num": "0635985800262",
+        "description": "WHITE CLAW HARD SELTZER VARIET",
+        "action_type": "UPDATE",
+        "initial_stock": 26.0,
+        "added_qty": 3.0,
+        "final_stock": 29.0,
+        "initial_cost": 31.9,
+        "new_cost": 31.9,
+        "alt_skus_added": [
+          "0635985800262",
+          "51826",
+          "635985800262"
+        ]
+      },
+      {
+        "item_num": "0752245141504",
+        "description": "WEIHENSTEPHAN HEFE WEISSBIER B",
+        "action_type": "UPDATE",
+        "initial_stock": 36.0,
+        "added_qty": 4.0,
+        "final_stock": 40.0,
+        "initial_cost": 11.6125,
+        "new_cost": 11.6125,
+        "alt_skus_added": [
+          "0752245141504",
+          "752245141504",
+          "15170"
+        ]
+      },
+      {
+        "item_num": "0865024000418",
+        "description": "WARPIGS FOGGY GEEZER C24 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 34.0,
+        "added_qty": 4.0,
+        "final_stock": 38.0,
+        "initial_cost": 9.7375,
+        "new_cost": 9.7375,
+        "alt_skus_added": [
+          "0865024000418",
+          "865024000418",
+          "37883"
+        ]
+      },
+      {
+        "item_num": "0652682012026",
+        "description": "3 FLOYDS GUMBALLHEAD B24 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 70.0,
+        "added_qty": 8.0,
+        "final_stock": 78.0,
+        "initial_cost": 9.7375,
+        "new_cost": 9.7375,
+        "alt_skus_added": [
+          "0652682012026",
+          "22806",
+          "652682012026"
+        ]
+      },
+      {
+        "item_num": "0652682034134",
+        "description": "3 FLOYDS ZOMBIE DUST C24 12OZ",
+        "action_type": "UPDATE",
+        "initial_stock": 38.0,
+        "added_qty": 4.0,
+        "final_stock": 42.0,
+        "initial_cost": 10.4875,
+        "new_cost": 10.4875,
+        "alt_skus_added": [
+          "652682034134",
+          "48063",
+          "0652682034134"
+        ]
+      }
+    ]
+  },
+  {
     "transaction_id": "TXN-20260722014808-101076601",
     "timestamp": "2026-07-22T01:48:12.251363",
     "invoice_number": "101076601",
