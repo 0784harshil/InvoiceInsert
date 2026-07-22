@@ -1,11 +1,11 @@
 """
-Invoice Manager — Enterprise Web UI with Interactive Human Verification Grid
+Invoice Manager — Enterprise Web UI with Interactive Verification & Operational Rollback Dashboard
 Enforces Rule 9 (Human Review), Rule 10 (Actual-Good Quantity),
 Rule 13 (Atomic Transaction & Readback Reconciliation),
 Rule 14 (posting_enabled=False), Rule 15 (shadow_mode=True), and Rule 18 (Reconciliation).
 """
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 import os
 import sys
 import tempfile
@@ -20,13 +20,14 @@ from validator import InvoiceValidator
 from review_manager import ReviewManager
 from db_manager import CertifiedDBManager
 from package_converter import PackageConverter
+from operational_logger import OperationalLogger
 from models import ReviewState, InvoiceHeader, InvoiceLineItem
 
 
 st.set_page_config(page_title="Enterprise Invoice Receiving Engine", page_icon="📄", layout="wide")
 
 st.title("Enterprise Invoice Receiving Engine")
-st.caption("Rule-Enforced Invoice Processing, Interactive Excel-like Verification Grid, & Live DB Upserts.")
+st.caption("Rule-Enforced Invoice Processing, Interactive Excel Grid, AltSKU Upserts, & 1-Click Transaction Rollbacks.")
 
 # Sidebar Controls
 with st.sidebar:
@@ -54,6 +55,7 @@ parser = InvoiceParser(use_preprocessing=True)
 validator = InvoiceValidator()
 review_mgr = ReviewManager()
 converter = PackageConverter()
+op_logger = OperationalLogger()
 
 if uploaded is not None:
     suffix = os.path.splitext(uploaded.name)[1]
@@ -67,7 +69,6 @@ if uploaded is not None:
                 header = parser.parse_file(tmp_path)
                 header = review_mgr.audit_and_prepare_invoice(header)
                 
-                # Build initial Pandas DataFrame for interactive st.data_editor
                 rows = []
                 for item in header.line_items:
                     rows.append({
@@ -124,7 +125,7 @@ if "header" in st.session_state:
 
         st.divider()
         st.subheader("✏️ Human Verification & Template Editor (Excel Grid)")
-        st.caption("Rule 9: You can click and edit any cell directly in the grid below to fix OCR text, update costs, or adjust quantities before saving.")
+        st.caption("Rule 9: You can click and edit any cell directly in the grid below to fix OCR text, correct UPCs, or adjust costs.")
 
         # Column Header Mapping Assignment
         with st.expander("🛠️ Column Header Mapping Controls", expanded=False):
@@ -139,7 +140,7 @@ if "header" in st.session_state:
         edited_df = st.data_editor(
             st.session_state["editor_df"],
             num_rows="dynamic",
-            height=600,
+            height=500,
             use_container_width=True,
             key="interactive_grid",
             column_config={
@@ -156,10 +157,8 @@ if "header" in st.session_state:
             }
         )
 
-        # Verification Approval Button
         st.write("")
         if st.button("✅ Confirm & Save Verified Template Data", type="secondary"):
-            # Update header line items with exact human-edited values from grid
             updated_line_items = []
             for idx, row in edited_df.iterrows():
                 try:
@@ -172,9 +171,6 @@ if "header" in st.session_state:
                     unit_cost = Decimal(str(row.get("Unit Cost ($)", 0.0)))
                     approved_qty = Decimal(str(row.get("Approved Qty", case_qty)))
 
-                    total_cost = case_qty * unit_cost
-
-                    # Recalculate POS Qty
                     pos_qty, rule, req_rev, reason = converter.calculate_expected_pos_qty(
                         case_qty=case_qty,
                         loose_qty=Decimal('0'),
@@ -193,7 +189,7 @@ if "header" in st.session_state:
                         case_quantity=case_qty,
                         loose_quantity=Decimal('0'),
                         unit_cost=unit_cost,
-                        total_cost=total_cost,
+                        total_cost=case_qty * unit_cost,
                         expected_pos_qty=pos_qty,
                         approved_actual_good_qty=approved_qty,
                         conversion_rule_used=rule,
@@ -219,11 +215,10 @@ if "header" in st.session_state:
         if shadow_mode:
             st.warning("⚠️ SHADOW MODE IS ON: Clicking execute will simulate queries without changing database. Toggle OFF 'Shadow Mode' in sidebar to write live data!")
         else:
-            st.info("🟢 LIVE MODE IS ACTIVE: Clicking execute will insert/update records directly into the Inventory database table.")
+            st.info("🟢 LIVE MODE IS ACTIVE: Clicking execute will insert/update records directly into the Inventory and Inventory_SKUS database tables.")
 
         db = CertifiedDBManager("config.json")
         if st.button("🚀 Execute Receiving & Write to DB", type="primary"):
-            # Ensure items are updated from editor if user didn't click save
             if not st.session_state.get("is_verified", False):
                 updated_line_items = []
                 for idx, row in edited_df.iterrows():
@@ -269,7 +264,7 @@ if "header" in st.session_state:
             
             if "LIVE_SUCCESS" in res['status']:
                 st.balloons()
-                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items. Status: {res['status']}")
+                st.success(f"✅ REAL DATABASE RECEIVING SUCCESSFUL! Posted & Reconciled {res['items_reconciled']} items. Transaction ID: `{res['transaction_id']}`")
             elif "SHADOW" in res['status']:
                 st.info(f"ℹ️ Shadow Audit Execution Completed for {res['items_reconciled']} items. Status: {res['status']}")
             else:
@@ -284,15 +279,53 @@ if "header" in st.session_state:
                 for log_line in res['audit_log'][:10]:
                     st.code(log_line, language="sql")
 
-        # Database Content Inspector
-        st.divider()
-        st.subheader("🗄️ Database Inventory Table Inspector")
-        if st.button("Refresh Live Database Contents"):
-            records = db.get_inventory_records()
-            if records:
-                st.write(f"Displaying top {len(records)} active inventory records in database:")
-                st.dataframe(pd.DataFrame(records), height=500, use_container_width=True)
-            else:
-                st.info("Database inventory table is currently empty.")
+# Section: Operational Receiving Logs & 1-Click Rollback Dashboard
+st.divider()
+st.subheader("🗂️ Operational Receiving Audit Logs & 1-Click Rollback Control")
+st.caption("Inspect past receiving transactions or execute 1-click atomic rollbacks if data was posted incorrectly.")
+
+db_inst = CertifiedDBManager("config.json")
+logs = op_logger.get_all_logs()
+
+if logs:
+    log_summary = []
+    for l in logs:
+        log_summary.append({
+            "Transaction ID": l["transaction_id"],
+            "Timestamp": l["timestamp"][:19].replace("T", " "),
+            "Invoice #": l["invoice_number"],
+            "Vendor": l["vendor_name"],
+            "Items Count": l["item_count"],
+            "Status": l["status"],
+            "Rolled Back": "YES 🔴" if l.get("rolled_back") else "NO 🟢"
+        })
+    st.dataframe(pd.DataFrame(log_summary), use_container_width=True)
+
+    # Rollback Selector
+    active_txns = [l["transaction_id"] for l in logs if not l.get("rolled_back") and "LIVE_SUCCESS" in l["status"]]
+    if active_txns:
+        r1, r2 = st.columns([3, 1])
+        selected_txn = r1.selectbox("Select Active Receiving Transaction to Rollback", active_txns)
+        if r2.button("↩️ Rollback Selected Transaction", type="secondary"):
+            with st.spinner(f"Rolling back transaction {selected_txn}..."):
+                rollback_res = db_inst.rollback_receiving_transaction(selected_txn)
+                if rollback_res["status"] == "ROLLBACK_SUCCESS":
+                    st.success(f"✅ {rollback_res['message']}")
+                    st.rerun()
+                else:
+                    st.error(f"🛑 {rollback_res['message']}")
+    else:
+        st.info("No active un-rolled-back live transactions available for rollback.")
 else:
-    st.info("Upload an invoice document above to begin processing.")
+    st.info("No operational receiving logs recorded yet.")
+
+# Section: Database Inventory Table Inspector
+st.divider()
+st.subheader("🗄️ Live Database Inventory Table Inspector")
+if st.button("Refresh Live Database Contents"):
+    records = db_inst.get_inventory_records()
+    if records:
+        st.write(f"Displaying top {len(records)} active inventory records in database:")
+        st.dataframe(pd.DataFrame(records), height=450, use_container_width=True)
+    else:
+        st.info("Database inventory table is currently empty.")

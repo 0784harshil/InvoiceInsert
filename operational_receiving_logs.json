@@ -1,0 +1,31 @@
+[
+  {
+    "transaction_id": "TXN-20260722001618-INV-ROLLBACK-TEST",
+    "timestamp": "2026-07-22T00:16:18.283264",
+    "invoice_number": "INV-ROLLBACK-TEST",
+    "vendor_name": "Test Vendor",
+    "store_id": "1001",
+    "status": "LIVE_SUCCESS (PYODBC)",
+    "execution_mode": "LIVE",
+    "item_count": 1,
+    "rolled_back": true,
+    "rollback_timestamp": "2026-07-22T00:16:18.319795",
+    "items_detail": [
+      {
+        "item_num": "099999888887",
+        "description": "TEST ROLLBACK ITEM",
+        "action_type": "INSERT",
+        "initial_stock": 0.0,
+        "added_qty": 1.0,
+        "final_stock": 1.0,
+        "initial_cost": 0.0,
+        "new_cost": 35.0,
+        "alt_skus_added": [
+          "99999888887",
+          "0099999888887",
+          "TEST999"
+        ]
+      }
+    ]
+  }
+]

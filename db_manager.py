@@ -1,13 +1,11 @@
 """
 Certified Database Manager for CRE / POS Integration
 Enforces Rules 4, 12, 13, 14, 15, 17, 18:
-- Flexible UPC Matching: Matches exact UPC, 12-digit UPC (stripped leading zeros), or Vendor_Part_Num.
-- Product Identity: Store_ID + ItemNum (Rule 4).
-- Fully supports CRE SQL Server schema & foreign key relationships (Store_ID, Dept_ID from Departments table).
+- Automatic UPC Normalization (EAN-13, UPC-A, GTIN-11) & Dual-Field Storage (ItemNum + AltSKU + Helper_ItemNum).
+- Writes alternate barcode variants into Inventory_SKUS table for seamless scanning.
+- Full Operational Logging & 1-Click Atomic Transaction Rollback.
 - Live database insertion supported when posting_enabled=True and shadow_mode=False.
 - Atomic transactions (BEGIN TRANSACTION), idempotency checks, and post-write readback reconciliation.
-- Multi-engine: PyODBC (MS SQL Server) with SQLite fallback database for certified live receiving.
-- Never claim inventory update unless write reconciled successfully.
 """
 
 from decimal import Decimal
@@ -16,14 +14,18 @@ import sqlite3
 import json
 import os
 import traceback
+from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
+
 from models import InvoiceHeader, InvoiceLineItem, ReviewState
+from upc_normalizer import UPCNormalizer
+from operational_logger import OperationalLogger
 
 
 class CertifiedDBManager:
     """
     Certified Database Manager guaranteeing transactional safety, shadow mode audit logs,
-    live database upserts, and post-write readback reconciliation.
+    dual-field AltSKU inventory upserts, detailed operational logging, and 1-click rollbacks.
     """
 
     def __init__(self, config_path: str = 'config.json'):
@@ -35,8 +37,9 @@ class CertifiedDBManager:
         self.sample_store_id: str = self.config.get('default_store_id', '1001')
         self.sample_dept_id: str = self.config.get('default_dept_id', 'BEER')
         
-        # Certification Flag
         self.is_certified: bool = self.config.get('receiving_certified', True)
+        self.normalizer = UPCNormalizer()
+        self.logger = OperationalLogger()
         self._init_sqlite_db()
 
     def _load_config(self, config_path: str) -> dict:
@@ -64,7 +67,7 @@ class CertifiedDBManager:
             return f"DRIVER={driver};SERVER={server};DATABASE={database};UID={uid};PWD={pwd};"
 
     def _init_sqlite_db(self):
-        """Initialize local SQLite inventory table fallback."""
+        """Initialize local SQLite inventory and AltSKU fallback tables."""
         try:
             conn = sqlite3.connect(self.sqlite_path)
             cursor = conn.cursor()
@@ -76,7 +79,16 @@ class CertifiedDBManager:
                     Cost REAL,
                     In_Stock REAL,
                     Vendor_Part_Num TEXT,
+                    Helper_ItemNum TEXT,
                     Last_Updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS Inventory_SKUS (
+                    Store_ID TEXT DEFAULT '1001',
+                    ItemNum TEXT,
+                    AltSKU TEXT,
+                    PRIMARY KEY (Store_ID, ItemNum, AltSKU)
                 )
             """)
             conn.commit()
@@ -138,9 +150,11 @@ class CertifiedDBManager:
     ) -> Dict[str, Any]:
         """
         Main receiving execution engine enforcing shadow_mode, posting_enabled,
-        atomic transactions, and readback reconciliation.
+        atomic transactions, dual-field AltSKU upserts, and readback reconciliation.
         """
+        transaction_id = f"TXN-{datetime.now().strftime('%Y%m%d%H%M%S')}-{header.invoice_number}"
         results = {
+            'transaction_id': transaction_id,
             'status': 'BLOCKED',
             'shadow_mode': shadow_mode,
             'posting_enabled': posting_enabled,
@@ -151,56 +165,59 @@ class CertifiedDBManager:
             'reconciliation_report': []
         }
 
-        # Rule 12 Check: Live CRE write forbidden until certified
         if posting_enabled and not shadow_mode and not self.is_certified:
             results['status'] = 'BLOCKED'
             results['audit_log'].append("SAFETY_BLOCK: Installation receiving behavior is not certified (receiving_certified=False). Live write blocked.")
             return results
 
-        # Rule 14 Check: posting_enabled must be explicitly True to post
         if not posting_enabled:
             results['status'] = 'SHADOW_MODE_ONLY'
             results['audit_log'].append("SHADOW_MODE: posting_enabled=False. Executing in dry-run audit mode.")
             return self._execute_shadow_mode(header, results)
 
-        # Rule 15 Check: shadow_mode=True forces dry-run audit
         if shadow_mode:
             results['status'] = 'SHADOW_MODE_ONLY'
             results['audit_log'].append("SHADOW_MODE: shadow_mode=True. SQL statements generated and audited without mutating DB.")
             return self._execute_shadow_mode(header, results)
 
-        # Live Execution Mode (Requires Certification, posting_enabled=True, shadow_mode=False)
-        return self._execute_live_atomic_receiving(header, results)
+        return self._execute_live_atomic_receiving(header, results, transaction_id)
 
     def _execute_shadow_mode(self, header: InvoiceHeader, results: Dict[str, Any]) -> Dict[str, Any]:
-        """Generates audit ledger without modifying database tables."""
+        """Generates shadow audit ledger without modifying database tables."""
         store_id = header.store_id or self.sample_store_id
         for item in header.line_items:
             if item.review_state != ReviewState.REVIEWED_APPROVED:
-                results['audit_log'].append(f"Line {item.line_number}: Skipped in shadow mode (Not human approved).")
                 continue
 
-            upc = item.raw_upc or item.raw_item_num
+            raw_upc = str(item.raw_upc or item.raw_item_num)
+            mapping = self.normalizer.determine_primary_and_alts(raw_upc, item.raw_item_num)
             qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
             cost = item.unit_cost
 
             shadow_sql = (
-                f"-- SHADOW MODE SQL (Idempotent Check & Upsert):\n"
-                f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{upc}' OR ItemNum = '{upc.lstrip('0')}')\n"
-                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost} WHERE ItemNum = '{upc}' OR ItemNum = '{upc.lstrip('0')}'\n"
+                f"-- SHADOW MODE SQL (Dual-Field ItemNum + AltSKU):\n"
+                f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{mapping['primary_item_num']}')\n"
+                f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
                 f"ELSE\n"
-                f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, In_Stock, Dept_ID) VALUES ('{store_id}', '{upc}', '{item.raw_description[:30]}', {cost}, {qty}, '{self.sample_dept_id}');"
+                f"  INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, In_Stock, Helper_ItemNum, Dept_ID) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{item.raw_description[:30]}', {cost}, {qty}, '{mapping['helper_item_num']}', '{self.sample_dept_id}');\n"
             )
+            for alt in mapping['alt_skus']:
+                shadow_sql += f"INSERT INTO Inventory_SKUS (Store_ID, ItemNum, AltSKU) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{alt}');\n"
+
             results['audit_log'].append(shadow_sql)
             results['items_reconciled'] += 1
 
         results['status'] = 'SHADOW_AUDIT_SUCCESS'
         return results
 
-    def _execute_live_atomic_receiving(self, header: InvoiceHeader, results: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_live_atomic_receiving(
+        self,
+        header: InvoiceHeader,
+        results: Dict[str, Any],
+        transaction_id: str
+    ) -> Dict[str, Any]:
         """
-        Executes atomic transactions (BEGIN TRANSACTION) with immediate readback reconciliation.
-        Flexible UPC matching: Checks exact UPC, stripped 12-digit UPC, or Vendor_Part_Num.
+        Executes live atomic receiving with dual-field AltSKU insertions and operational logging.
         """
         if not self.conn:
             if not self.connect():
@@ -211,6 +228,7 @@ class CertifiedDBManager:
         cursor = self.conn.cursor()
         store_id = self.sample_store_id if (not header.store_id or header.store_id.startswith("STORE-")) else header.store_id
         dept_id = self.sample_dept_id
+        items_logged = []
 
         try:
             for item in header.line_items:
@@ -218,41 +236,56 @@ class CertifiedDBManager:
                     continue
 
                 results['items_attempted'] += 1
-                raw_upc = str(item.raw_upc or item.raw_item_num)[:20]
-                upc_stripped = raw_upc.lstrip('0')
-                upc_12dig = raw_upc[1:] if (len(raw_upc) == 13 and raw_upc.startswith('0')) else raw_upc
-                
+                raw_upc = str(item.raw_upc or item.raw_item_num)
+                vendor_part = str(item.raw_item_num)[:20]
                 add_qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
                 cost = item.unit_cost
                 desc = str(item.raw_description)[:30]
-                vendor_part = str(item.raw_item_num)[:20]
 
-                # Step 1: Flexible Lookup for existing item (Exact UPC, 12-digit UPC, or Vendor Part Num)
+                # Step 1: Generate Normalized UPC variants
+                upc_variants = list(self.normalizer.generate_variants(raw_upc))
+                if vendor_part and vendor_part not in upc_variants:
+                    upc_variants.append(vendor_part)
+
+                # Step 2: Flexible Lookup (Match Inventory.ItemNum, Inventory.Helper_ItemNum, or Inventory_SKUS.AltSKU)
+                query_placeholders = ",".join(["?"] * len(upc_variants)) if upc_variants else "?"
+                query_args = upc_variants if upc_variants else [raw_upc]
+
                 cursor.execute(
-                    "SELECT ItemNum, In_Stock FROM Inventory WHERE ItemNum = ? OR ItemNum = ? OR ItemNum = ? OR Vendor_Part_Num = ?",
-                    (raw_upc, upc_12dig, upc_stripped, vendor_part)
+                    f"""SELECT ItemNum, In_Stock, Cost FROM Inventory 
+                        WHERE ItemNum IN ({query_placeholders}) 
+                           OR Helper_ItemNum IN ({query_placeholders}) 
+                           OR Vendor_Part_Num IN ({query_placeholders})
+                           OR ItemNum IN (SELECT ItemNum FROM Inventory_SKUS WHERE AltSKU IN ({query_placeholders}))""",
+                    query_args * 4
                 )
                 row = cursor.fetchone()
-                
+
                 if row:
+                    action_type = "UPDATE"
                     matched_upc = str(row[0]).strip()
                     initial_stock = Decimal(str(row[1])) if row[1] is not None else Decimal('0')
-                    
-                    # Update Existing Item
-                    cursor.execute(
-                        "UPDATE Inventory SET In_Stock = In_Stock + ?, Cost = ?, Vendor_Part_Num = ? WHERE ItemNum = ?",
-                        (float(add_qty), float(cost), vendor_part, matched_upc)
-                    )
+                    initial_cost = Decimal(str(row[2])) if row[2] is not None else Decimal('0.00')
+
                     target_upc = matched_upc
+                    helper_upc = upc_variants[0] if (upc_variants and upc_variants[0] != target_upc) else ""
+
+                    cursor.execute(
+                        "UPDATE Inventory SET In_Stock = In_Stock + ?, Cost = ?, Vendor_Part_Num = ?, Helper_ItemNum = ? WHERE ItemNum = ?",
+                        (float(add_qty), float(cost), vendor_part, helper_upc, target_upc)
+                    )
                 else:
-                    # Insert New Item using 12-digit format if available
-                    target_upc = upc_12dig if len(upc_12dig) >= 10 else raw_upc
+                    action_type = "INSERT"
+                    mapping = self.normalizer.determine_primary_and_alts(raw_upc, vendor_part)
+                    target_upc = mapping["primary_item_num"]
+                    helper_upc = mapping["helper_item_num"]
                     initial_stock = Decimal('0')
+                    initial_cost = Decimal('0.00')
 
                     if self.conn_type == 'pyodbc':
                         cursor.execute(
                             """INSERT INTO Inventory (
-                                Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num, Dept_ID,
+                                Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num, Helper_ItemNum, Dept_ID,
                                 Reorder_Level, Reorder_Quantity, Tax_1, Tax_2, Tax_3, IsKit, IsModifier,
                                 Inv_Num_Barcode_Labels, Use_Serial_Numbers, Num_Bonus_Points, IsRental,
                                 Use_Bulk_Pricing, Print_Ticket, Print_Voucher, Num_Days_Valid, IsMatrixItem,
@@ -262,7 +295,7 @@ class CertifiedDBManager:
                                 Import_Markup, PricePerMeasure, AvailableOnline, DoughnutTax,
                                 DisableInventoryUpload, InvoiceLimitQty, ItemCategory, IsRestrictedPerInvoice
                             ) VALUES (
-                                ?, ?, ?, ?, ?, ?, ?,
+                                ?, ?, ?, ?, ?, ?, ?, ?,
                                 0.0, 0.0, 0, 0, 0, 0, 0,
                                 0, 0, 0, 0,
                                 0, 0, 0, 0, 0,
@@ -272,38 +305,75 @@ class CertifiedDBManager:
                                 0.0, 0.0, 0, 0,
                                 0, 0.0, 0, 0
                             )""",
-                            (store_id, target_upc, desc, float(cost), float(add_qty), vendor_part, dept_id)
+                            (store_id, target_upc, desc, float(cost), float(add_qty), vendor_part, helper_upc, dept_id)
                         )
                     else:
                         cursor.execute(
-                            "INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num) VALUES (?, ?, ?, ?, ?, ?)",
-                            (store_id, target_upc, desc, float(cost), float(add_qty), vendor_part)
+                            "INSERT INTO Inventory (Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num, Helper_ItemNum) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (store_id, target_upc, desc, float(cost), float(add_qty), vendor_part, helper_upc)
                         )
 
-                # Step 3: READBACK RECONCILIATION
+                # Step 3: Upsert Alternate Barcodes into Inventory_SKUS table
+                alts_added = []
+                for alt_code in upc_variants:
+                    if alt_code != target_upc and len(alt_code) >= 6:
+                        try:
+                            if self.conn_type == 'pyodbc':
+                                cursor.execute(
+                                    """IF NOT EXISTS (SELECT 1 FROM Inventory_SKUS WHERE Store_ID = ? AND ItemNum = ? AND AltSKU = ?)
+                                       INSERT INTO Inventory_SKUS (Store_ID, ItemNum, AltSKU) VALUES (?, ?, ?)""",
+                                    (store_id, target_upc, alt_code, store_id, target_upc, alt_code)
+                                )
+                            else:
+                                cursor.execute(
+                                    "INSERT OR IGNORE INTO Inventory_SKUS (Store_ID, ItemNum, AltSKU) VALUES (?, ?, ?)",
+                                    (store_id, target_upc, alt_code)
+                                )
+                            alts_added.append(alt_code)
+                        except Exception:
+                            pass
+
+                # Step 4: READBACK RECONCILIATION
                 cursor.execute("SELECT In_Stock FROM Inventory WHERE ItemNum = ?", (target_upc,))
                 post_row = cursor.fetchone()
                 final_stock = Decimal(str(post_row[0])) if post_row and post_row[0] is not None else Decimal('0')
-
                 expected_final_stock = initial_stock + add_qty
 
-                # Step 4: Verify exact readback match (Rule 13 & Rule 18)
                 if abs(final_stock - expected_final_stock) < Decimal('0.01'):
                     results['items_reconciled'] += 1
-                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [{self.conn_type.upper()}]"
+                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [AltSKUs: {len(alts_added)}]"
                     results['reconciliation_report'].append(msg)
-                    results['audit_log'].append(f"SUCCESS: {msg}")
+
+                    items_logged.append({
+                        "item_num": target_upc,
+                        "description": desc,
+                        "action_type": action_type,
+                        "initial_stock": float(initial_stock),
+                        "added_qty": float(add_qty),
+                        "final_stock": float(final_stock),
+                        "initial_cost": float(initial_cost),
+                        "new_cost": float(cost),
+                        "alt_skus_added": alts_added
+                    })
                 else:
                     results['reconciliation_failed'] += 1
-                    raise ValueError(
-                        f"RECONCILIATION_FAILED: Item {target_upc} readback mismatched! "
-                        f"Expected {expected_final_stock}, but DB returned {final_stock}."
-                    )
+                    raise ValueError(f"RECONCILIATION_FAILED: Item {target_upc} readback mismatched! Expected {expected_final_stock}, got {final_stock}.")
 
             # Step 5: Commit Atomic Transaction
             self.conn.commit()
             results['status'] = f"LIVE_SUCCESS ({self.conn_type.upper()})"
-            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items successfully written and reconciled to database.")
+            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with AltSKUs.")
+
+            # Log to Operational Logger
+            self.logger.log_transaction(
+                transaction_id=transaction_id,
+                invoice_number=header.invoice_number,
+                vendor_name=header.vendor_name,
+                store_id=store_id,
+                status=results['status'],
+                items_detail=items_logged,
+                execution_mode="LIVE"
+            )
 
         except Exception as e:
             err_msg = f"{e}\n{traceback.format_exc()}"
@@ -317,14 +387,76 @@ class CertifiedDBManager:
 
         return results
 
-    def get_inventory_records(self) -> List[Dict[str, Any]]:
+    def rollback_receiving_transaction(self, transaction_id: str) -> Dict[str, Any]:
+        """
+        Rolls back a receiving transaction by restoring previous inventory stock levels,
+        reverting unit costs, and removing added AltSKUs.
+        """
+        log_record = self.logger.get_log_by_id(transaction_id)
+        if not log_record:
+            return {"status": "ERROR", "message": f"Transaction ID '{transaction_id}' not found in operational logs."}
+
+        if log_record.get("rolled_back", False):
+            return {"status": "ALREADY_ROLLED_BACK", "message": f"Transaction '{transaction_id}' was already rolled back."}
+
+        if not self.conn:
+            if not self.connect():
+                return {"status": "DB_ERROR", "message": "Unable to connect to database for rollback."}
+
+        cursor = self.conn.cursor()
+        reverted_count = 0
+        deleted_count = 0
+
+        try:
+            for item in log_record.get("items_detail", []):
+                item_num = item["item_num"]
+                added_qty = item["added_qty"]
+                initial_cost = item["initial_cost"]
+                action_type = item["action_type"]
+                alt_skus = item.get("alt_skus_added", [])
+
+                # 1. Remove AltSKUs added during transaction
+                for alt in alt_skus:
+                    cursor.execute("DELETE FROM Inventory_SKUS WHERE ItemNum = ? AND AltSKU = ?", (item_num, alt))
+
+                if action_type == "INSERT":
+                    # Delete newly created inventory record
+                    cursor.execute("DELETE FROM Inventory WHERE ItemNum = ?", (item_num,))
+                    deleted_count += 1
+                else:
+                    # Revert stock and cost for updated item
+                    cursor.execute(
+                        "UPDATE Inventory SET In_Stock = In_Stock - ?, Cost = ? WHERE ItemNum = ?",
+                        (added_qty, initial_cost, item_num)
+                    )
+                    reverted_count += 1
+
+            self.conn.commit()
+            self.logger.mark_rolled_back(transaction_id)
+            return {
+                "status": "ROLLBACK_SUCCESS",
+                "transaction_id": transaction_id,
+                "reverted_items": reverted_count,
+                "deleted_items": deleted_count,
+                "message": f"Successfully rolled back transaction '{transaction_id}'. Reverted {reverted_count} updated items and removed {deleted_count} inserted items."
+            }
+
+        except Exception as e:
+            if self.conn:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
+            return {"status": "ROLLBACK_FAILED", "message": f"Rollback failed due to error: {e}"}
+
+    def get_inventory_records() -> List[Dict[str, Any]]:
         """Retrieve current inventory table contents for audit/verification (returns up to 200 records)."""
         if not self.conn:
             if not self.connect():
                 return []
         try:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT TOP 200 Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num FROM Inventory ORDER BY In_Stock DESC")
+            cursor.execute("SELECT TOP 200 Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num, Helper_ItemNum FROM Inventory ORDER BY In_Stock DESC")
             rows = cursor.fetchall()
             return [
                 {
@@ -333,14 +465,15 @@ class CertifiedDBManager:
                     "ItemName": str(r[2]),
                     "Cost": float(r[3]) if r[3] is not None else 0.0,
                     "In_Stock": float(r[4]) if r[4] is not None else 0.0,
-                    "Vendor_Part_Num": str(r[5]) if r[5] is not None else ""
+                    "Vendor_Part_Num": str(r[5]) if r[5] is not None else "",
+                    "Helper_ItemNum": str(r[6]) if len(r) > 6 and r[6] is not None else ""
                 }
                 for r in rows
             ]
         except Exception:
             try:
                 cursor = self.conn.cursor()
-                cursor.execute("SELECT Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num FROM Inventory ORDER BY In_Stock DESC LIMIT 200")
+                cursor.execute("SELECT Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num, Helper_ItemNum FROM Inventory ORDER BY In_Stock DESC LIMIT 200")
                 rows = cursor.fetchall()
                 return [
                     {
@@ -349,7 +482,8 @@ class CertifiedDBManager:
                         "ItemName": str(r[2]),
                         "Cost": float(r[3]) if r[3] is not None else 0.0,
                         "In_Stock": float(r[4]) if r[4] is not None else 0.0,
-                        "Vendor_Part_Num": str(r[5]) if r[5] is not None else ""
+                        "Vendor_Part_Num": str(r[5]) if r[5] is not None else "",
+                        "Helper_ItemNum": str(r[6]) if len(r) > 6 and r[6] is not None else ""
                     }
                     for r in rows
                 ]
