@@ -93,11 +93,12 @@ if "header" in st.session_state:
             st.write(f"- {reason}")
     else:
         # Header Metrics
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Vendor", header.vendor_name)
-        c2.metric("Invoice #", header.invoice_number)
-        c3.metric("Subtotal", f"${header.subtotal:.2f}")
-        c4.metric("Total Amount", f"${header.total_amount:.2f}")
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Total Line Items", f"{len(header.line_items)} items")
+        c2.metric("Vendor", header.vendor_name)
+        c3.metric("Invoice #", header.invoice_number)
+        c4.metric("Subtotal", f"${header.subtotal:.2f}")
+        c5.metric("Total Amount", f"${header.total_amount:.2f}")
 
         # Fee Segregation Expander
         with st.expander("Segregated Non-Inventory Fees (Excluded from Product Unit Cost)"):
@@ -109,8 +110,8 @@ if "header" in st.session_state:
             f5.metric("Discounts", f"-${header.fees.discounts:.2f}")
 
         # Line Items & Human Review Queue
-        st.subheader(f"📋 Extracted Line Items ({len(header.line_items)} items ready)")
-        st.caption("Rule 9 & 10: All valid items are auto-approved. You can modify actual-good quantity below if needed.")
+        st.subheader(f"📋 Extracted Line Items ({len(header.line_items)} items total)")
+        st.caption("Rule 9 & 10: All valid items are auto-approved. You can view all items in the scrollable table below.")
 
         table_data = []
         for item in header.line_items:
@@ -129,7 +130,7 @@ if "header" in st.session_state:
             })
 
         df_items = pd.DataFrame(table_data)
-        st.dataframe(df_items, width=1200)
+        st.dataframe(df_items, height=600, width=1200)
 
         # Post / Live DB Receiving Button
         st.divider()
@@ -160,10 +161,8 @@ if "header" in st.session_state:
             
             with st.expander("Reconciliation Report & Audit Log", expanded=True):
                 st.markdown(f"### Readback Reconciliation Ledger ({res['items_reconciled']} items)")
-                for report_line in res['reconciliation_report'][:20]:
+                for report_line in res['reconciliation_report']:
                     st.write(f"- {report_line}")
-                if len(res['reconciliation_report']) > 20:
-                    st.write(f"... and {len(res['reconciliation_report']) - 20} more reconciled items.")
                     
                 st.markdown("### Audit Log")
                 for log_line in res['audit_log'][:10]:
@@ -175,7 +174,8 @@ if "header" in st.session_state:
         if st.button("Refresh Live Database Contents"):
             records = db.get_inventory_records()
             if records:
-                st.dataframe(pd.DataFrame(records), width=1200)
+                st.write(f"Displaying top {len(records)} active inventory records in database:")
+                st.dataframe(pd.DataFrame(records), height=500, width=1200)
             else:
                 st.info("Database inventory table is currently empty.")
 else:

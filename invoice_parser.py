@@ -152,7 +152,6 @@ class InvoiceParser:
                             continue
 
                         # Match standard product line item
-                        # ITEM# QTY DESCRIPTION UPC UPRICE DISC DEP PRICE AMOUNT
                         match = re.search(r'^(\d{4,6})\s+(\d+)\s+(.*?)\s+(\d{10,14})\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)$', line_str)
                         if match:
                             item_code = match.group(1)
@@ -170,7 +169,6 @@ class InvoiceParser:
                                     raw_package_text = next_line
                                     desc_text += " " + next_line
 
-                            # Package Conversion calculation
                             expected_pos_qty, rule_used, requires_review, reason = self.converter.calculate_expected_pos_qty(
                                 case_qty=qty_val,
                                 loose_qty=Decimal('0'),
@@ -240,7 +238,7 @@ class InvoiceParser:
         return False
 
     def _extract_pages_ocr(self, file_path: str, ext: str) -> Tuple[List[str], bool]:
-        """Extract OCR text per page."""
+        """Extract OCR text per page with dynamic orientation detection."""
         poppler_path = r"C:\poppler\poppler-24.08.0\Library\bin" if os.path.exists(r"C:\poppler\poppler-24.08.0\Library\bin") else None
 
         pages_text = []
@@ -267,7 +265,7 @@ class InvoiceParser:
             return [txt], True
 
     def _ocr_image(self, image: Image.Image) -> Tuple[str, float]:
-        """Runs OCR on image with optional preprocessing."""
+        """Runs OCR on image with dynamic orientation detection."""
         if self.preprocessor:
             try:
                 proc_img = self.preprocessor.preprocess_for_pil(image)
@@ -296,9 +294,9 @@ class InvoiceParser:
         store_id: str,
         vendor_id: str
     ) -> InvoiceHeader:
-        """Parses multi-page OCR text using hybrid Row + Columnar extraction."""
+        """Parses multi-page OCR text using flexible item code, UPC, and price regex."""
         combined_text = "\n".join(pages_text)
-        vendor_name = self._extract_regex(combined_text, r'^(.*?System[s]?|Core-Mark|Reyes|Chicago Beverage[^\n]*)') or "Chicago Beverage Systems"
+        vendor_name = self._extract_regex(combined_text, r'^(.*?System[s]?|Core-Mark|Reyes|Chicago Beverage[^\n]*)') or "Core-Mark / Distributor"
         inv_num = self._extract_regex(combined_text, r'Invoice\s*#?\s*:?\s*(\d+)', group=1) or os.path.basename(file_path)
         inv_date = self._extract_regex(combined_text, r'(\w{3}\s+\d{1,2},\s*\d{4}|\d{2}/\d{2}/\d{4})') or "2026-07-21"
 
@@ -315,83 +313,63 @@ class InvoiceParser:
                 if fee_type:
                     self._apply_fee(fees, fee_type, fee_amt)
 
-            # Try row-based parsing first
-            page_row_items = []
+            # Enhanced Item Parsing for image OCR
             for line in lines:
+                if 'SOLD TO' in line or 'Baseline' in line or 'Total' in line or 'PAGE' in line or 'CHICAGO, IL' in line:
+                    continue
+
+                item_num_match = re.search(r'\b(\d{5,7})\b', line)
                 upc_match = re.search(r'\b(\d{10,14})\b', line)
-                numbers = re.findall(r'\$?(\d+\.\d{2,4})', line)
-                parts = line.split()
+                has_product_words = bool(re.search(r'\b[A-Z]{3,}\b', line))
 
-                if upc_match and len(numbers) >= 1 and len(parts) >= 3:
-                    raw_upc = upc_match.group(1)
-                    item_code = parts[0]
-                    qty_match = re.search(r'^\d+\s+(\d+)\s+', line)
-                    qty_val = Decimal(qty_match.group(1)) if qty_match else Decimal('1')
-                    unit_cost = Decimal(numbers[0])
-                    total_cost = Decimal(numbers[-1]) if len(numbers) >= 2 else unit_cost * qty_val
+                if (item_num_match or upc_match) and has_product_words:
+                    item_code = item_num_match.group(1) if item_num_match else (upc_match.group(1)[-6:] if upc_match else "000000")
+                    raw_upc = upc_match.group(1) if upc_match else ""
+                    
+                    price_match = re.search(r'\$?(\d+\.\d{2})', line)
+                    if price_match:
+                        price_val = Decimal(price_match.group(1))
+                    else:
+                        int_price_match = re.search(r'\b(\d{3,4})\s*$', line)
+                        if int_price_match:
+                            digits = int_price_match.group(1)
+                            price_val = Decimal(f"{digits[:-2]}.{digits[-2:]}")
+                        else:
+                            price_val = Decimal('0.00')
 
-                    pkg_match = re.search(r'([CB]\d{2}\s+[\d\.]+OZ\s+\d+P|C\d{2}|B\d{2}|\d+-PACK)', line, re.IGNORECASE)
-                    raw_package_text = pkg_match.group(1) if pkg_match else "C24"
+                    desc = re.sub(r'^(EA|BX|CS|PK|i EA|\[ EA|U EA|cs|\d+)\s*\|?\s*', '', line)
+                    desc = re.sub(r'\b\d{5,7}\b|\b\d{10,14}\b|\$?[\d\.]+', '', desc).replace('|', '').strip()
+                    desc_clean = desc[:35] or f"Product {item_code}"
+                    
+                    qty_val = Decimal('1')
+                    total_cost = price_val * qty_val
+                    raw_package_text = "EA"
 
-                    desc_end = upc_match.start()
-                    desc_parts = line[:desc_end].split()[2:] if len(line[:desc_end].split()) > 2 else line[:desc_end].split()
-                    desc = " ".join(desc_parts).strip() or f"Product {raw_upc[-4:]}"
-
-                    page_row_items.append((item_code, raw_upc, desc, raw_package_text, qty_val, unit_cost, total_cost))
-
-            if len(page_row_items) >= 4:
-                for item_code, raw_upc, desc, raw_package_text, qty_val, unit_cost, total_cost in page_row_items:
-                    pos_qty, rule, req_rev, reason = self.converter.calculate_expected_pos_qty(
-                        case_qty=qty_val, loose_qty=Decimal('0'), store_id=store_id, vendor_id=vendor_id,
-                        vendor_item_num=item_code, package_text=raw_package_text
+                    pos_qty, rule_used, requires_review, reason = self.converter.calculate_expected_pos_qty(
+                        case_qty=qty_val,
+                        loose_qty=Decimal('0'),
+                        store_id=store_id,
+                        vendor_id=vendor_id,
+                        vendor_item_num=item_code,
+                        package_text=raw_package_text
                     )
+
                     line_items.append(InvoiceLineItem(
-                        line_number=line_counter, raw_item_num=item_code, raw_description=desc,
-                        raw_upc=raw_upc, raw_package_text=raw_package_text, case_quantity=qty_val,
-                        loose_quantity=Decimal('0'), unit_cost=unit_cost, total_cost=total_cost,
-                        expected_pos_qty=pos_qty, conversion_rule_used=rule,
-                        review_state=ReviewState.NEEDS_HUMAN_REVIEW if req_rev else ReviewState.UNREVIEWED
-                    ))
-                    line_counter += 1
-            else:
-                upcs = re.findall(r'\b\d{10,14}\b', page_text)
-                upcs = [u for u in upcs if len(u) >= 11 and not u.startswith('773') and not u.startswith('877')]
-                item_codes = re.findall(r'^\d{4,6}$', page_text, re.MULTILINE)
-                prices = re.findall(r'\b\d{1,4}\.\d{2}\b', page_text)
-                qty_descs = re.findall(r'^(\d+)\s+([A-Z0-9\s\.\-\/]+)', page_text, re.MULTILINE)
-                qty_descs = [qd for qd in qty_descs if not qd[1].startswith('CH GROCER') and not qd[1].startswith('KILBOURN')]
-
-                num_items = min(len(item_codes), len(upcs))
-                for i in range(num_items):
-                    item_code = item_codes[i]
-                    raw_upc = upcs[i]
-                    qty_str, desc_str = qty_descs[i] if i < len(qty_descs) else ("1", f"Product {raw_upc[-4:]}")
-                    cost_str = prices[i] if i < len(prices) else "0.00"
-
-                    try:
-                        qty_val = Decimal(qty_str)
-                        unit_cost = Decimal(cost_str)
-                    except Exception:
-                        qty_val = Decimal('1')
-                        unit_cost = Decimal('0.00')
-
-                    total_cost = unit_cost * qty_val
-                    raw_package_text = "C24"
-
-                    pos_qty, rule, req_rev, reason = self.converter.calculate_expected_pos_qty(
-                        case_qty=qty_val, loose_qty=Decimal('0'), store_id=store_id, vendor_id=vendor_id,
-                        vendor_item_num=item_code, package_text=raw_package_text
-                    )
-                    line_items.append(InvoiceLineItem(
-                        line_number=line_counter, raw_item_num=item_code, raw_description=desc_str[:30],
-                        raw_upc=raw_upc, raw_package_text=raw_package_text, case_quantity=qty_val,
-                        loose_quantity=Decimal('0'), unit_cost=unit_cost, total_cost=total_cost,
-                        expected_pos_qty=pos_qty, conversion_rule_used=rule,
-                        review_state=ReviewState.NEEDS_HUMAN_REVIEW if req_rev else ReviewState.UNREVIEWED
+                        line_number=line_counter,
+                        raw_item_num=item_code,
+                        raw_description=desc_clean,
+                        raw_upc=raw_upc,
+                        raw_package_text=raw_package_text,
+                        case_quantity=qty_val,
+                        loose_quantity=Decimal('0'),
+                        unit_cost=price_val,
+                        total_cost=total_cost,
+                        expected_pos_qty=pos_qty,
+                        conversion_rule_used=rule_used,
+                        review_state=ReviewState.NEEDS_HUMAN_REVIEW if requires_review else ReviewState.UNREVIEWED
                     ))
                     line_counter += 1
 
-        # Totals Extraction
         subtotal_match = re.search(r'Subtotal\s*\$?([\d,]+\.\d{2})', combined_text, re.IGNORECASE)
         total_match = re.search(r'(?:Invoice Total|Total Sales)\s*\$?([\d,]+\.\d{2})', combined_text, re.IGNORECASE)
 

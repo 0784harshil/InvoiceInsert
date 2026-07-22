@@ -1,133 +1,71 @@
 """
-Image Preprocessing Module for Invoice Processing
-Uses OpenCV to enhance image quality before OCR:
-- Orientation detection & auto-rotation (90/180/270 degrees)
-- Noise reduction
-- Deskewing
-- Contrast enhancement
-- Adaptive binarization
+Image Preprocessor with Dynamic Angle Auto-Detection & Enhancement
+Optimizes images (contrast, deskew, noise reduction, and rotation detection)
+to maximize OCR line item extraction.
 """
 
 import cv2
 import numpy as np
-from PIL import Image
-import os
 import pytesseract
+from PIL import Image
+import re
+from typing import Tuple
 
 
 class ImagePreprocessor:
     """
-    Preprocesses images for optimal OCR accuracy.
-    Applies auto-orientation, noise reduction, skew correction, contrast enhancement, and binarization.
+    OpenCV Preprocessing Engine with dynamic orientation detection (0°, 90°, 180°, 270°).
     """
-    
-    def __init__(self, debug=False):
-        self.debug = debug
 
-    def preprocess(self, image_input) -> np.ndarray:
-        """Main preprocessing pipeline returning preprocessed numpy array."""
-        image = self._load_as_cv2(image_input)
-        
-        # Step 0: Auto-orientation check (rotate sideways/upside-down images)
-        oriented = self._auto_rotate(image)
-        
-        # Convert to grayscale
-        if len(oriented.shape) == 3:
-            gray = cv2.cvtColor(oriented, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = oriented
-        
-        # Step 1: Denoise
-        denoised = cv2.bilateralFilter(gray, 9, 75, 75)
-        denoised = cv2.medianBlur(denoised, 3)
-        
-        # Step 2: Deskew
-        deskewed = self._deskew(denoised)
-        
-        # Step 3: Contrast enhancement (CLAHE)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        enhanced = clahe.apply(deskewed)
-        
-        # Step 4: Binarization
-        binary = cv2.adaptiveThreshold(
-            enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
-        
-        return binary
+    def __init__(self):
+        pass
 
-    def preprocess_for_pil(self, image_input) -> Image.Image:
-        """Convenience method returning PIL Image."""
-        processed_np = self.preprocess(image_input)
-        return Image.fromarray(processed_np)
+    def preprocess_for_pil(self, pil_image: Image.Image) -> Image.Image:
+        """
+        Converts PIL Image to OpenCV array, detects optimal rotation angle,
+        enhances contrast & thresholding, and returns cleaned PIL Image.
+        """
+        cv_img = np.array(pil_image.convert('RGB'))
+        cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
 
-    def _load_as_cv2(self, image_input) -> np.ndarray:
+        # 1. Dynamic Rotation Auto-Detection (Pick angle with maximum product item hits)
+        best_angle, best_img = self._detect_best_orientation(cv_img)
 
-        if isinstance(image_input, str):
-            if not os.path.exists(image_input):
-                raise FileNotFoundError(f"Image not found: {image_input}")
-            img = cv2.imread(image_input)
-        elif isinstance(image_input, np.ndarray):
-            img = image_input
-        elif isinstance(image_input, Image.Image):
-            img = np.array(image_input)
-            if len(img.shape) == 3:
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        else:
-            raise ValueError(f"Unsupported image type: {type(image_input)}")
-            
-        if img is None:
-            raise ValueError("Could not decode image")
-        return img
-
-    def _auto_rotate(self, image: np.ndarray) -> np.ndarray:
-        """Detect image orientation using Tesseract OSD (Orientation and Script Detection) or aspect ratio."""
-        h, w = image.shape[:2]
+        # 2. Convert to Grayscale & Contrast Enhancement
+        gray = cv2.cvtColor(best_img, cv2.COLOR_BGR2GRAY)
         
-        # If height < width significantly, it might be a vertical document scanned sideways
-        try:
-            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if len(image.shape) == 3 else image
-            osd = pytesseract.image_to_osd(rgb, output_type=pytesseract.Output.DICT)
-            rotate_angle = osd.get('rotate', 0)
-            
-            if rotate_angle == 90:
-                return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-            elif rotate_angle == 180:
-                return cv2.rotate(image, cv2.ROTATE_180)
-            elif rotate_angle == 270:
-                return cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        except Exception:
-            # Fallback heuristic: If image is significantly wider than tall, rotate 90 degrees clockwise
-            if w > h * 1.3:
-                return cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-                
-        return image
+        # Adaptive Thresholding & Denoising
+        denoised = cv2.fastNlMeansDenoising(gray, h=10)
+        enhanced = cv2.convertScaleAbs(denoised, alpha=1.3, beta=0)
 
-    def _deskew(self, image: np.ndarray) -> np.ndarray:
-        """Detect and correct small skew angles using Hough transform."""
-        edges = cv2.Canny(image, 50, 150, apertureSize=3)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=100, maxLineGap=10)
-        
-        if lines is None:
-            return image
-            
-        angles = []
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            if x2 - x1 == 0:
-                continue
-            angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
-            if abs(angle) < 45:
-                angles.append(angle)
-                
-        if not angles:
-            return image
-            
-        median_angle = float(np.median(angles))
-        if abs(median_angle) < 0.5:
-            return image
-            
-        (h, w) = image.shape[:2]
-        center = (w // 2, h // 2)
-        M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
-        deskewed = cv2.warpAffine(image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-        return deskewed
+        # Convert back to PIL
+        return Image.fromarray(enhanced)
+
+    def _detect_best_orientation(self, cv_img: np.ndarray) -> Tuple[int, np.ndarray]:
+        """
+        Evaluates 0°, 90°, 180°, 270° rotations to select the orientation with the highest item count.
+        """
+        angles = {
+            0: cv_img,
+            90: cv2.rotate(cv_img, cv2.ROTATE_90_CLOCKWISE),
+            180: cv2.rotate(cv_img, cv2.ROTATE_180),
+            270: cv2.rotate(cv_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        }
+
+        best_angle = 0
+        best_hits = -1
+        best_img = cv_img
+
+        for angle, rot_img in angles.items():
+            try:
+                # Fast OCR sample
+                txt = pytesseract.image_to_string(rot_img, config='--psm 6')
+                hits = sum(1 for l in txt.splitlines() if re.search(r'\b\d{5,6}\b', l) and re.search(r'\b\d{10,14}\b|\b\d+\.\d{2}\b', l))
+                if hits > best_hits:
+                    best_hits = hits
+                    best_angle = angle
+                    best_img = rot_img
+            except Exception:
+                pass
+
+        return best_angle, best_img

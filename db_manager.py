@@ -318,13 +318,13 @@ class CertifiedDBManager:
         return results
 
     def get_inventory_records(self) -> List[Dict[str, Any]]:
-        """Retrieve current inventory table contents for audit/verification."""
+        """Retrieve current inventory table contents for audit/verification (returns up to 200 records)."""
         if not self.conn:
             if not self.connect():
                 return []
         try:
             cursor = self.conn.cursor()
-            cursor.execute("SELECT TOP 50 Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num FROM Inventory ORDER BY Last_Sold DESC")
+            cursor.execute("SELECT TOP 200 Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num FROM Inventory ORDER BY In_Stock DESC")
             rows = cursor.fetchall()
             return [
                 {
@@ -340,7 +340,7 @@ class CertifiedDBManager:
         except Exception:
             try:
                 cursor = self.conn.cursor()
-                cursor.execute("SELECT Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num FROM Inventory LIMIT 50")
+                cursor.execute("SELECT Store_ID, ItemNum, ItemName, Cost, In_Stock, Vendor_Part_Num FROM Inventory ORDER BY In_Stock DESC LIMIT 200")
                 rows = cursor.fetchall()
                 return [
                     {
