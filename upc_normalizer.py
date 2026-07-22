@@ -1,7 +1,7 @@
 """
 UPC Normalizer Engine
 Handles automatic conversion and variant generation for 11-digit, 12-digit, and 13-digit UPCs.
-Ensures seamless barcode matching and AltSKU generation for POS scanners.
+Ensures seamless barcode matching and AltSKU generation for CRE POS scanners.
 """
 
 import re
@@ -11,7 +11,7 @@ from typing import List, Set, Dict
 class UPCNormalizer:
     """
     UPC Normalizer that generates all valid representation variants (EAN-13, UPC-A, GTIN-11)
-    and formats barcodes for dual-field storage (ItemNum + AltSKU / Helper_ItemNum).
+    and formats barcodes for CRE POS dual-field storage (ItemNum + AltSKU + Helper_ItemNum).
     """
 
     @staticmethod
@@ -46,28 +46,30 @@ class UPCNormalizer:
             variants.add('0' + cleaned)  # 12-digit
             variants.add('00' + cleaned) # 13-digit EAN-13
 
-        return {v for v in variants if len(v) >= 8}
+        return {v for v in variants if len(v) >= 6}
 
     @classmethod
     def determine_primary_and_alts(cls, raw_upc: str, vendor_item_num: str = "") -> Dict[str, str]:
         """
-        Determines Primary ItemNum (12-digit preferred for CRE POS) and AltSKU / Helper_ItemNum.
+        Determines Primary ItemNum (12-digit UPC-A preferred for CRE POS) and AltSKU list.
         """
-        variants = sorted(list(cls.generate_variants(raw_upc)), key=len)
-        if not variants:
-            primary = vendor_item_num or "UNKNOWN"
-            alts = []
+        cleaned = cls.clean_upc(raw_upc)
+        variants = list(cls.generate_variants(cleaned))
+
+        # Standard CRE POS Primary ItemNum is 12-digit UPC-A (convert 00 prefix 13-digit to 12-digit)
+        if len(cleaned) == 13 and cleaned.startswith('00'):
+            primary = cleaned[1:]  # 12-digit (072890003102)
+        elif len(cleaned) == 11:
+            primary = '0' + cleaned # 12-digit (072890003102)
         else:
-            # Prefer 12-digit format for Primary ItemNum in CRE POS
-            preferred_12 = [v for v in variants if len(v) == 12]
-            primary = preferred_12[0] if preferred_12 else variants[0]
-            alts = [v for v in variants if v != primary]
-            
-            if vendor_item_num and vendor_item_num not in alts and vendor_item_num != primary:
-                alts.append(vendor_item_num)
+            primary = cleaned or vendor_item_num or "UNKNOWN"
+
+        alts = [v for v in variants if v != primary]
+        if vendor_item_num and vendor_item_num not in alts and vendor_item_num != primary:
+            alts.append(vendor_item_num)
 
         return {
             "primary_item_num": primary,
             "alt_skus": alts,
-            "helper_item_num": alts[0] if alts else primary
+            "helper_item_num": cleaned if (cleaned != primary) else (alts[0] if alts else primary)
         }
