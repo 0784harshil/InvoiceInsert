@@ -3,7 +3,7 @@ Certified Database Manager for CRE / POS Integration
 Enforces Rules 4, 12, 13, 14, 15, 17, 18:
 - CRE POS Register Compatibility: Sets Inactive=0, ItemType=0, Dirty=1, Tax_1=1, Price, non-empty ItemName, and Intelligent Dept_ID.
 - Automatic UPC Normalization (EAN-13, UPC-A, GTIN-11) & Dual-Field Storage (ItemNum + AltSKU + Helper_ItemNum).
-- Writes primary ItemNum AND all alternate barcode variants into Inventory_SKUS table for 100% POS Alt SKU search compatibility.
+- Writes Primary ItemNum AND Vendor Item Number AND all alternate barcode variants into Inventory_SKUS.AltSKU.
 - Full Operational Logging & 1-Click Atomic Transaction Rollback.
 """
 
@@ -193,15 +193,16 @@ class CertifiedDBManager:
                 continue
 
             raw_upc = str(item.raw_upc or item.raw_item_num)
-            mapping = self.normalizer.determine_primary_and_alts(raw_upc, item.raw_item_num)
+            vendor_part = str(item.raw_item_num).strip()
+            mapping = self.normalizer.determine_primary_and_alts(raw_upc, vendor_part)
             qty = item.approved_actual_good_qty or item.expected_pos_qty or Decimal('0')
             cost = item.unit_cost
             price = cost * Decimal('1.30')
-            desc = str(item.raw_description).strip() or f"ITEM {item.raw_item_num}"
+            desc = str(item.raw_description).strip() or f"ITEM {vendor_part}"
             proper_dept = self.classifier.classify_department(desc, raw_upc)
 
             shadow_sql = (
-                f"-- SHADOW MODE SQL (CRE POS Scanner & Dept classification: {proper_dept}):\n"
+                f"-- SHADOW MODE SQL (CRE POS Scanner & Alt SKU Enabled - ItemNum + Vendor Part):\n"
                 f"IF EXISTS (SELECT 1 FROM Inventory WHERE ItemNum = '{mapping['primary_item_num']}')\n"
                 f"  UPDATE Inventory SET In_Stock = In_Stock + {qty}, Cost = {cost}, ItemName = '{desc[:30]}', Dept_ID = '{proper_dept}', Inactive = 0, ItemType = 0, Dirty = 1, Tax_1 = 1, Helper_ItemNum = '{mapping['helper_item_num']}' WHERE ItemNum = '{mapping['primary_item_num']}'\n"
                 f"ELSE\n"
@@ -209,6 +210,9 @@ class CertifiedDBManager:
             )
             all_alts = set(mapping['alt_skus'])
             all_alts.add(mapping['primary_item_num'])
+            if vendor_part:
+                all_alts.add(vendor_part)
+
             for alt in all_alts:
                 shadow_sql += f"INSERT INTO Inventory_SKUS (Store_ID, ItemNum, AltSKU) VALUES ('{store_id}', '{mapping['primary_item_num']}', '{alt}');\n"
 
@@ -225,7 +229,7 @@ class CertifiedDBManager:
         transaction_id: str
     ) -> Dict[str, Any]:
         """
-        Executes live atomic receiving with intelligent Dept_ID classification and CRE POS Alt SKU search compatibility.
+        Executes live atomic receiving writing Primary ItemNum AND Vendor Item Number AND all barcode variants to Inventory_SKUS.AltSKU.
         """
         if not self.conn:
             if not self.connect():
@@ -328,13 +332,19 @@ class CertifiedDBManager:
                             (store_id, target_upc, desc, float(cost), float(price), float(add_qty), vendor_part, helper_upc, proper_dept)
                         )
 
-                # Upsert Primary ItemNum AND all alternate barcodes into Inventory_SKUS table
+                # GUARANTEE BOTH PRIMARY ITEMNUM AND VENDOR ITEM NUMBER AND ALL BARCODES GO TO INVENTORY_SKUS.ALTSKU
                 all_skus = set(upc_variants)
-                all_skus.add(target_upc) # Always include Primary ItemNum so Alt SKU radio button search works!
+                all_skus.add(target_upc)
+                if vendor_part:
+                    all_skus.add(vendor_part)
+                if str(item.raw_item_num).strip():
+                    all_skus.add(str(item.raw_item_num).strip())
+                if item.raw_upc and str(item.raw_upc).strip():
+                    all_skus.add(str(item.raw_upc).strip())
 
                 alts_added = []
                 for alt_code in all_skus:
-                    if len(alt_code) >= 4:
+                    if len(alt_code) >= 3:
                         try:
                             if self.conn_type == 'pyodbc':
                                 cursor.execute(
@@ -359,7 +369,7 @@ class CertifiedDBManager:
 
                 if abs(final_stock - expected_final_stock) < Decimal('0.01'):
                     results['items_reconciled'] += 1
-                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [Dept: {proper_dept}]"
+                    msg = f"LIVE_RECONCILED: Item {target_upc} ({desc[:20]}) - Initial Stock: {initial_stock}, Added: {add_qty}, Final Stock: {final_stock} [AltSKUs Synced: {len(alts_added)}]"
                     results['reconciliation_report'].append(msg)
 
                     items_logged.append({
@@ -380,7 +390,7 @@ class CertifiedDBManager:
             # Commit Transaction
             self.conn.commit()
             results['status'] = f"LIVE_SUCCESS ({self.conn_type.upper()})"
-            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with POS Scanner Flags & Depts.")
+            results['audit_log'].append(f"TRANSACTION_COMMITTED: {results['items_reconciled']} items written & reconciled with Vendor & ItemNum AltSKUs.")
 
             self.logger.log_transaction(
                 transaction_id=transaction_id,
