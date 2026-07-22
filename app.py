@@ -22,7 +22,7 @@ from db_manager import CertifiedDBManager
 from package_converter import PackageConverter
 from operational_logger import OperationalLogger
 from department_classifier import DepartmentClassifier
-from models import ReviewState, InvoiceHeader, InvoiceLineItem
+from models import ReviewState, InvoiceHeader, InvoiceLineItem, SegregatedFees
 
 
 st.set_page_config(page_title="Enterprise Invoice Receiving Engine", page_icon="📄", layout="wide")
@@ -158,7 +158,7 @@ if "header" in st.session_state:
             st.session_state["editor_df"],
             num_rows="dynamic",
             height=500,
-            use_container_width=True,
+            width="stretch",
             key="interactive_cost_grid",
             column_config={
                 "Line #": st.column_config.NumberColumn(disabled=True),
@@ -327,7 +327,7 @@ if logs:
             "Status": l["status"],
             "Rolled Back": "YES 🔴" if l.get("rolled_back") else "NO 🟢"
         })
-    st.dataframe(pd.DataFrame(log_summary), use_container_width=True)
+    st.dataframe(pd.DataFrame(log_summary), width="stretch")
 
     # Rollback Selector
     active_txns = [l["transaction_id"] for l in logs if not l.get("rolled_back") and "LIVE_SUCCESS" in l["status"]]
@@ -354,6 +354,6 @@ if st.button("Refresh Live Database Contents"):
     records = db_inst.get_inventory_records()
     if records:
         st.write(f"Displaying top {len(records)} active inventory records in database:")
-        st.dataframe(pd.DataFrame(records), height=450, use_container_width=True)
+        st.dataframe(pd.DataFrame(records), height=450, width="stretch")
     else:
         st.info("Database inventory table is currently empty.")

@@ -19,17 +19,25 @@ class ReviewState(Enum):
     REVIEW_REQUIRED = auto()
     REVIEWED_APPROVED = auto()
     POSTING_BLOCKED = auto()
+    
+    # Backward-compatible aliases for parser
+    UNREVIEWED = AUTOMATIC_PASS
+    NEEDS_HUMAN_REVIEW = REVIEW_REQUIRED
 
 
-class ConversionRule(Enum):
-    RULE_12PK_TO_2 = "12PK_TO_2"
-    RULE_6PK_TO_4 = "6PK_TO_4"
-    RULE_4PK_TO_6 = "4PK_TO_6"
-    RULE_SINGLE_24OZ_TO_12 = "SINGLE_24OZ_TO_12"
-    RULE_24PK_TO_1 = "24PK_TO_1"
-    RULE_18PK_TO_1 = "18PK_TO_1"
-    RULE_8PK_TO_3 = "8PK_TO_3"
-    DEFAULT_1_TO_1 = "1_TO_1"
+@dataclass
+class ConversionRule:
+    """Scoped conversion rule model for package conversion math."""
+    store_id: str = "1001"
+    vendor_id: str = "VEND-DEFAULT"
+    vendor_item_num: str = ""
+    package_text: str = "EA"
+    version: int = 1
+    case_numerator: Decimal = Decimal('1')
+    case_denominator: Decimal = Decimal('1')
+    loose_numerator: Decimal = Decimal('1')
+    loose_denominator: Decimal = Decimal('1')
+    is_one_slash_zero_notation: bool = False
 
 
 @dataclass
@@ -75,6 +83,12 @@ class InvoiceLineItem:
     conversion_rule_used: str = "DEFAULT_1_TO_1"
     review_state: ReviewState = ReviewState.AUTOMATIC_PASS
     review_reasons: List[str] = field(default_factory=list)
+
+    @property
+    def is_fee_or_charge(self) -> bool:
+        """Helper identifying non-inventory line items (e.g. freight, fuel, deposit)."""
+        desc = self.raw_description.upper() if self.raw_description else ""
+        return any(term in desc for term in ["DEPOSIT", "CRV", "FREIGHT", "DELIVERY", "FUEL", "SURCHARGE", "TAX", "FEE"])
 
     def calculate_single_pos_unit_cost(self) -> Decimal:
         """Calculates single POS unit cost = Total Line Item Cost / Approved POS Qty."""
